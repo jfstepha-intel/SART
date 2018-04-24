@@ -8,7 +8,7 @@ import (
     "os"
     "strconv"
 
-    "sart/module"
+    "sart/rtl"
 )
 
 var UnknownToken = fmt.Errorf("Unknown token")
@@ -96,7 +96,7 @@ func (p *parser) module_decl() {
 
     name := p.token.val
     p.expect(Id)
-    m := module.New(name)
+    m := rtl.New(name)
 
     if p.accept(LParen) {
         p.list_of_ports(m)
@@ -113,7 +113,7 @@ func (p *parser) module_decl() {
     log.Println(m)
 }
 
-func (p *parser) list_of_ports(m *module.Module) {
+func (p *parser) list_of_ports(m *rtl.Module) {
     if p.tokenis(RParen) { // empty list of ports
         return
     }
@@ -127,7 +127,7 @@ func (p *parser) list_of_ports(m *module.Module) {
     }
 }
 
-func (p *parser) module_item(m *module.Module) {
+func (p *parser) module_item(m *rtl.Module) {
     switch {
     // module items can be input/output/wire declarations
     case p.tokenis(Wire, Input, Inout, Output):
@@ -155,7 +155,7 @@ func (p *parser) module_item(m *module.Module) {
     p.expect(Semicolon)
 }
 
-func (p *parser) net_decl(m *module.Module) {
+func (p *parser) net_decl(m *rtl.Module) {
     typ := p.token.val
     p.expect(Wire, Input, Inout, Output)
 
@@ -215,7 +215,7 @@ func (p *parser) bitrange() (hi, lo int64) {
     return
 }
 
-func (p *parser) instance_connections(m *module.Module, iname string) {
+func (p *parser) instance_connections(m *rtl.Module, iname string) {
     // Connections can be empty
     if p.tokenis(RParen) {
         return
@@ -227,7 +227,7 @@ func (p *parser) instance_connections(m *module.Module, iname string) {
     }
 }
 
-func (p *parser) instance_connection(m *module.Module, iname string) {
+func (p *parser) instance_connection(m *rtl.Module, iname string) {
     p.expect(Dot)
 
     formal := p.token.val
