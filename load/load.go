@@ -8,6 +8,8 @@ import (
     "strings"
     "sync"
 
+    "gopkg.in/mgo.v2"
+
     "sart/parse"
     // "sart/module"
 )
@@ -27,10 +29,11 @@ func worker(wg *sync.WaitGroup, jobs <-chan string) {
 }
 
 func main() {
-    var path string 
+    var path, server string 
     var threads int
 
     flag.StringVar(&path, "path", "", "path to folder with netlist files")
+    flag.StringVar(&server, "server", "localhost", "name of mongodb server")
     flag.IntVar(&threads, "threads", 2, "number of parallel threads to spawn")
 
     flag.Parse()
@@ -41,6 +44,13 @@ func main() {
     }
 
     log.SetFlags(log.Lshortfile)
+
+    session, err := mgo.Dial(server)
+    if err != nil {
+        log.Fatal(err)
+    }
+    parse.SetMongoSession(session)
+
     log.SetOutput(os.Stdout)
 
     files, err := ioutil.ReadDir(path)

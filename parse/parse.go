@@ -54,8 +54,8 @@ func (p *parser) expect(types ...ItemType) {
         return
     }
     log.Output(2,
-               fmt.Sprintf("Expecting %q but got %v (%v) at line %d, pos %d.",
-                           types, p.token, p.token.typ, p.l.line, p.l.lpos))
+               fmt.Sprintf("Expecting %v but got %v at line %d, pos %d.",
+                           types, p.token, p.l.line, p.l.lpos))
     os.Exit(1)
 }
 
