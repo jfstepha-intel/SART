@@ -11,7 +11,7 @@ import (
     "gopkg.in/mgo.v2"
 
     "sart/parse"
-    // "sart/module"
+    "sart/rtl"
 )
 
 func worker(wg *sync.WaitGroup, jobs <-chan string) {
@@ -51,6 +51,8 @@ func main() {
         log.Fatal(err)
     }
     rtl.InitMgo(session, cache)
+
+    rtl.EmptyCache()
 
     log.SetOutput(os.Stdout)
 

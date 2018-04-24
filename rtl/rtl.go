@@ -28,7 +28,7 @@ type Inst struct {
 }
 
 type Module struct {
-    Name    string `bson:"name"`
+    Name    string
     Ports   []Port
     Signals []Signal
     Insts   []Inst

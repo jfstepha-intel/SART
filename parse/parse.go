@@ -108,6 +108,7 @@ func (p *parser) module_decl() {
     }
 
     p.expect(EndModule)
+    m.Save()
     log.Println(m.Name)
 }
 
