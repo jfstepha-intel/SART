@@ -5,6 +5,7 @@ import (
     "log"
     "io/ioutil"
     "os"
+    "strings"
     "sync"
 
     "sart/parse"
@@ -20,8 +21,7 @@ func worker(wg *sync.WaitGroup, jobs <-chan string) {
             log.Fatal(err)
         }
 
-        // lexparse.NewParser(file)
-        parse.New(file)
+        parse.New(path, file)
 
         file.Close()
     }
@@ -59,6 +59,11 @@ func main() {
 
     for _, file := range files {
         filename := file.Name()
+        
+        if !strings.HasSuffix(filename, ".v") {
+            continue
+        }
+
         fpath := path + "/" + filename
         jobs <- fpath
     }
