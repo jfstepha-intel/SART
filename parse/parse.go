@@ -32,8 +32,6 @@ func New(name string, r io.Reader) {
     parser.next()
 
     parser.statements()
-
-    log.Println(parser.token)
 }
 
 // next advances a token
@@ -110,7 +108,7 @@ func (p *parser) module_decl() {
     }
 
     p.expect(EndModule)
-    log.Println(m)
+    log.Println(m.Name)
 }
 
 func (p *parser) list_of_ports(m *rtl.Module) {
@@ -177,13 +175,19 @@ func (p *parser) net_decl(m *rtl.Module) {
     if typ == "wire" {
         m.AddSignal(name, width)
     } else {
+        m.SetPortType(name, typ)
         m.SetPortWidth(name, width)
     }
 
     for p.accept(Comma) {
         name := p.token.val
         p.expect(Id)
-        m.AddSignal(name, width)
+        if typ == "wire" {
+            m.AddSignal(name, width)
+        } else {
+            m.SetPortType(name, typ)
+            m.SetPortWidth(name, width)
+        }
     }
 
     p.expect(Semicolon)

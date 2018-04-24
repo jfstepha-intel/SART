@@ -5,16 +5,16 @@ import (
     // "gopkg.in/mgo.v2/bson"
 )
 
+type portmap   map[string]*Port
+type signalmap map[string]*Signal
+type instmap   map[string]*Inst
+type connmap   map[string][]string
+
 type Port struct {
     Name  string
     Type  string
     Width int
 }
-
-type portmap   map[string]*Port
-type signalmap map[string]*Signal
-type instmap   map[string]*Inst
-type connmap   map[string][]string
 
 type Signal struct {
     Name  string
@@ -48,10 +48,18 @@ func New(name string) *Module {
 }
 
 func (m *Module) AddPort(name, typ string) {
-    log.Printf("%s: Adding port %s(type:%s)", m.Name, name, typ)
+    // log.Printf("%s: Adding port %s(type:%s)", m.Name, name, typ)
     p := Port{name, typ, 1}
     m.Ports = append(m.Ports, p)
     m.pmap[name] = &p
+}
+
+func (m *Module) SetPortType(name, typ string) {
+    if _, ok := m.pmap[name]; !ok {
+        log.Fatalf("%s: Unknown port %s", m.Name, name)
+    }
+    m.pmap[name].Type = typ
+    // log.Printf("%s: Setting type of port %s to %s", m.Name, name, typ)
 }
 
 func (m *Module) SetPortWidth(name string, width int) {
@@ -59,18 +67,18 @@ func (m *Module) SetPortWidth(name string, width int) {
         log.Fatalf("%s: Unknown port %s", m.Name, name)
     }
     m.pmap[name].Width = width
-    log.Printf("%s: Setting width of port %s to %d", m.Name, name, width)
+    // log.Printf("%s: Setting width of port %s to %d", m.Name, name, width)
 }
 
 func (m *Module) AddSignal(name string, width int) {
-    log.Printf("%s: Adding signal %s(width:%d)", m.Name, name, width)
+    // log.Printf("%s: Adding signal %s(width:%d)", m.Name, name, width)
     s := Signal{name, width}
     m.Signals = append(m.Signals, s)
     m.smap[name] = &s
 }
 
 func (m *Module) AddInst(name, typ string) {
-    log.Printf("%s: Adding instance %s(type:%s)", m.Name, name, typ)
+    // log.Printf("%s: Adding instance %s(type:%s)", m.Name, name, typ)
     i := Inst{
         Name: name,
         Type: typ,
@@ -85,5 +93,5 @@ func (m *Module) AddInstConn(name, formal string, actual ...string) {
         log.Fatalf("%s: Unknown instance %s", name)
     }
     m.imap[name].Conn[formal] = append(m.imap[name].Conn[formal], actual...)
-    log.Printf("%s: Adding instance connection for %s (%s <- %v)", m.Name, name, formal, actual)
+    // log.Printf("%s: Adding instance connection for %s (%s <- %v)", m.Name, name, formal, actual)
 }

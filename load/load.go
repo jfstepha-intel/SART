@@ -14,8 +14,6 @@ import (
 
 func worker(wg *sync.WaitGroup, jobs <-chan string) {
     for path := range jobs {
-        log.Println(path)
-
         file, err := os.Open(path)
         if err != nil {
             log.Fatal(err)
@@ -33,7 +31,7 @@ func main() {
     var threads int
 
     flag.StringVar(&path, "path", "", "path to folder with netlist files")
-    flag.IntVar(&threads, "workers", 2, "number of parallel threads to spawn")
+    flag.IntVar(&threads, "threads", 2, "number of parallel threads to spawn")
 
     flag.Parse()
 
@@ -43,6 +41,7 @@ func main() {
     }
 
     log.SetFlags(log.Lshortfile)
+    log.SetOutput(os.Stdout)
 
     files, err := ioutil.ReadDir(path)
     if err != nil {
