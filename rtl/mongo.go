@@ -1,4 +1,4 @@
-package parse
+package rtl
 
 import (
     "gopkg.in/mgo.v2"

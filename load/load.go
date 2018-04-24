@@ -49,7 +49,7 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
-    parse.SetMongoSession(session)
+    rtl.SetMongoSession(session)
 
     log.SetOutput(os.Stdout)
 
