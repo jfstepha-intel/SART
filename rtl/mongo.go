@@ -6,6 +6,11 @@ import (
 
 var mgosession *mgo.Session
 
-func SetMongoSession(s *mgo.Session) {
+const db = "sart"
+
+var collection string
+
+func InitMgo(s *mgo.Session, c string) {
     mgosession = s.Copy()
+    collection = c
 }

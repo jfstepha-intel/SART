@@ -29,16 +29,17 @@ func worker(wg *sync.WaitGroup, jobs <-chan string) {
 }
 
 func main() {
-    var path, server string 
+    var path, server, cache string 
     var threads int
 
     flag.StringVar(&path, "path", "", "path to folder with netlist files")
     flag.StringVar(&server, "server", "localhost", "name of mongodb server")
+    flag.StringVar(&cache, "cache", "", "name of cache to save module info")
     flag.IntVar(&threads, "threads", 2, "number of parallel threads to spawn")
 
     flag.Parse()
 
-    if path == "" {
+    if path == "" || cache == "" {
         flag.PrintDefaults()
         log.Fatal("Insufficient arguments")
     }
@@ -49,7 +50,7 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
-    rtl.SetMongoSession(session)
+    rtl.InitMgo(session, cache)
 
     log.SetOutput(os.Stdout)
 
