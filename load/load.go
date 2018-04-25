@@ -80,7 +80,10 @@ func main() {
         jobs <- fpath
     }
 
+    // No more parse jobs
     close(jobs)
-
     wg.Wait()
+
+    rtl.DoneMgo() // Signal no more mongo insert jobs
+    rtl.WaitMgo() // Wait for all insert jobs to complete
 }
