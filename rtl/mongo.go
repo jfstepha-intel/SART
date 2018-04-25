@@ -55,6 +55,8 @@ func InitMgo(s *mgo.Session, cname string) {
     mgosession = s.Copy()
     collection = cname
 
+    EmptyCache()
+
     c := cache()
     err := c.EnsureIndex(mgo.Index{
         Key: []string{"module", "name"},

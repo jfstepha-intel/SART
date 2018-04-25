@@ -52,8 +52,6 @@ func main() {
     }
     rtl.InitMgo(session, cache)
 
-    rtl.EmptyCache()
-
     log.SetOutput(os.Stdout)
 
     files, err := ioutil.ReadDir(path)
