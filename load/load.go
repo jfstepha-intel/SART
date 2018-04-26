@@ -67,8 +67,11 @@ func main() {
         wg.Add(1)
     }
 
+    count := 0
+    total := len(files)
     for _, file := range files {
         filename := file.Name()
+        count++
         
         if !strings.HasSuffix(filename, ".v") {
             continue
@@ -76,6 +79,8 @@ func main() {
 
         fpath := path + "/" + filename
         jobs <- fpath
+
+        log.Printf("(%d/%d) %s", count, total, filename)
     }
 
     // No more parse jobs
