@@ -116,12 +116,10 @@ func (m *Module) Save() {
     }
 }
 
-func Load(top string) *Module {
-    m := NewModule(top)
-
+func (m *Module) Load() {
     // nodes collection, query and iterator
     nc := mgosession.DB(db).C(nodecoll)
-    nq := nc.Find(bson.M{"module": top})
+    nq := nc.Find(bson.M{"module": m.Name})
     ni := nq.Iter()
 
     var result bson.M
@@ -145,7 +143,7 @@ func Load(top string) *Module {
 
     // instance collection, query and iterator
     ic := mgosession.DB(db).C(instcoll)
-    iq := ic.Find(bson.M{"module": top})
+    iq := ic.Find(bson.M{"module": m.Name})
     ii := iq.Iter()
 
     for ii.Next(&result) {
@@ -164,6 +162,4 @@ func Load(top string) *Module {
 
         m.AddInst(&inst)
     }
-
-    return m
 }
