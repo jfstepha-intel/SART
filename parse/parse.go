@@ -94,7 +94,7 @@ func (p *parser) module_decl() {
 
     name := p.token.val
     p.expect(Id)
-    m := rtl.New(name)
+    m := rtl.NewModule(name)
 
     if p.accept(LParen) {
         p.list_of_ports(m)
@@ -117,11 +117,11 @@ func (p *parser) list_of_ports(m *rtl.Module) {
     }
     pname := p.token.val
     p.expect(Id)
-    m.AddNode(pname, "", 1) // type is not known at this time.
+    m.AddNewNode(pname, "", 1) // type is not known at this time.
     for p.accept(Comma) {
         pname := p.token.val
         p.expect(Id)
-        m.AddNode(pname, "", 1)
+        m.AddNewNode(pname, "", 1)
     }
 }
 
@@ -170,12 +170,12 @@ func (p *parser) net_decl(m *rtl.Module) {
 
     name := p.token.val
     p.expect(Id)
-    m.AddNode(name, typ, width)
+    m.AddNewNode(name, typ, width)
 
     for p.accept(Comma) {
         name := p.token.val
         p.expect(Id)
-        m.AddNode(name, typ, width)
+        m.AddNewNode(name, typ, width)
     }
 
     p.expect(Semicolon)
@@ -237,7 +237,7 @@ func (p *parser) instance_connection(m *rtl.Module, iname, itype string) {
     }
 
     p.expect(RParen)
-    m.AddInst(iname, itype, formal, actual)
+    m.AddNewInst(iname, itype, formal, actual)
 }
 
 func (p *parser) primary() (str string) {

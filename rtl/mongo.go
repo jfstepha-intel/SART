@@ -4,6 +4,7 @@ import (
     "log"
     "sync"
     "gopkg.in/mgo.v2"
+    "gopkg.in/mgo.v2/bson"
 )
 
 var mgosession *mgo.Session
@@ -113,4 +114,56 @@ func (m *Module) Save() {
     for _, i := range m.Insts {
         jobs <- insertjob{instcoll, i}
     }
+}
+
+func Load(top string) *Module {
+    m := NewModule(top)
+
+    // nodes collection, query and iterator
+    nc := mgosession.DB(db).C(nodecoll)
+    nq := nc.Find(bson.M{"module": top})
+    ni := nq.Iter()
+
+    var result bson.M
+
+    for ni.Next(&result) {
+        bytes, err := bson.Marshal(result)
+        if err !=nil {
+            log.Fatalf("Unable to marshal. module:%q name:%q err:%v",
+                       result["module"], result["name"], err)
+        }
+
+        var node Node
+        err = bson.Unmarshal(bytes, &node)
+        if err != nil {
+            log.Fatalf("Unable to umarshal. module:%q name:%q err:%v",
+                       result["module"], result["name"], err)
+        }
+
+        m.AddNode(&node)
+    }
+
+    // instance collection, query and iterator
+    ic := mgosession.DB(db).C(instcoll)
+    iq := ic.Find(bson.M{"module": top})
+    ii := iq.Iter()
+
+    for ii.Next(&result) {
+        bytes, err := bson.Marshal(result)
+        if err !=nil {
+            log.Fatalf("Unable to marshal. module:%q name:%q err:%v",
+                       result["module"], result["name"], err)
+        }
+
+        var inst Inst
+        err = bson.Unmarshal(bytes, &inst)
+        if err != nil {
+            log.Fatalf("Unable to umarshal. module:%q name:%q err:%v",
+                       result["module"], result["name"], err)
+        }
+
+        m.AddInst(&inst)
+    }
+
+    return m
 }

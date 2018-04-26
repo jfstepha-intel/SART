@@ -8,18 +8,18 @@ import (
 type connmap   map[string][]string
 
 type Node struct {
-    Parent string `bson:"module"`
-    Name   string `bson:"name"`
-    Type   string `bson:"type"`
-    Width  int    `bson:"width"`
+    Parent string       `bson:"module"`
+    Name   string       `bson:"name"`
+    Type   string       `bson:"type"`
+    Width  int          `bson:"width"`
 }
 
 type Inst struct {
-    Parent string           `bson:"module"`
-    Name   string           `bson:"name"`
-    Type   string           `bson:"type"`
-    Formal string           `bson:"formal"`
-    Actual []string         `bson:"actual"`
+    Parent   string     `bson:"module"`
+    Name     string     `bson:"name"`
+    Type     string     `bson:"type"`
+    Formal   string     `bson:"formal"`
+    Actual []string     `bson:"actual"`
 }
 
 type Module struct {
@@ -28,7 +28,7 @@ type Module struct {
     Insts   []*Inst
 }
 
-func New(name string) *Module {
+func NewModule(name string) *Module {
     m := &Module{
         Name : name,
         Nodes: make(map[string]*Node),
@@ -36,25 +36,41 @@ func New(name string) *Module {
     return m
 }
 
-func (m *Module) AddNode(name, typ string, width int) {
-    // log.Printf("%s: Adding port %s(type:%s)", m.Name, name, typ)
+func NewNode(parent, name, typ string, width int) *Node {
     p := &Node {
-        Parent: m.Name,
+        Parent: parent,
         Name  : name,
         Type  : typ,
         Width : width,
     }
-    m.Nodes[name] = p
+    return p
 }
 
-func (m *Module) AddInst(name, typ, formal string, actual []string) {
-    // log.Printf("%s: Adding instance %s(type:%s)", m.Name, name, typ)
+func NewInst(parent, name, typ, formal string, actual []string) *Inst {
     i := &Inst{
-        Parent: m.Name,
+        Parent: parent,
         Name  : name,
         Type  : typ,
         Formal: formal,
         Actual: actual,
     }
-    m.Insts = append(m.Insts, i)
+    return i
+}
+
+func (m *Module) AddNewNode(name, typ string, width int) {
+    n := NewNode(m.Name, name, typ, width)
+    m.AddNode(n)
+}
+
+func (m *Module) AddNewInst(name, typ, formal string, actual []string) {
+    i := NewInst(m.Name, name, typ, formal, actual)
+    m.AddInst(i)
+}
+
+func (m *Module) AddNode(node *Node) {
+    m.Nodes[node.Name] = node
+}
+
+func (m *Module) AddInst(inst *Inst) {
+    m.Insts = append(m.Insts, inst)
 }
