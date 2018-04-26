@@ -51,7 +51,7 @@ func WaitMgo() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-func InitMgo(s *mgo.Session, cname string) {
+func InitMgo(s *mgo.Session, cname string, drop bool) {
     mgosession = s.Copy()
     collection = cname
 
@@ -60,8 +60,10 @@ func InitMgo(s *mgo.Session, cname string) {
 
     var err error
 
-    deleteCollection(nodecoll)
-    deleteCollection(instcoll)
+    if drop {
+        dropCollection(nodecoll)
+        dropCollection(instcoll)
+    }
 
     n := mgosession.DB(db).C(nodecoll)
     err = n.EnsureIndex(mgo.Index{
@@ -89,17 +91,7 @@ func InitMgo(s *mgo.Session, cname string) {
     }
 }
 
-// func EmptyCache() {
-//     c := cache()
-//     err := c.DropCollection()
-//     if err != nil {
-//         log.Println(err)
-//     }
-//     n := mgosession.DB(db).C(nodecoll)
-//     i := mgosession.DB(db).C(instcoll)
-// }
-
-func deleteCollection(coll string) {
+func dropCollection(coll string) {
     c := mgosession.DB(db).C(coll)
     err := c.DropCollection()
     if err != nil {

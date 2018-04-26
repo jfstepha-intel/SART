@@ -32,10 +32,10 @@ func main() {
     var path, server, cache string 
     var threads int
 
-    flag.StringVar(&path, "path", "", "path to folder with netlist files")
-    flag.StringVar(&server, "server", "localhost", "name of mongodb server")
-    flag.StringVar(&cache, "cache", "", "name of cache to save module info")
-    flag.IntVar(&threads, "threads", 2, "number of parallel threads to spawn")
+    flag.StringVar(&path,   "path",    "",          "path to folder with netlist files")
+    flag.StringVar(&server, "server",  "localhost", "name of mongodb server")
+    flag.StringVar(&cache,  "cache",   "",          "name of cache to save module info")
+    flag.IntVar(&threads,   "threads", 2,           "number of parallel threads to spawn")
 
     flag.Parse()
 
@@ -50,7 +50,7 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
-    rtl.InitMgo(session, cache)
+    rtl.InitMgo(session, cache, true)
 
     log.SetOutput(os.Stdout)
 
