@@ -109,7 +109,6 @@ func (p *parser) module_decl() {
 
     p.expect(EndModule)
     m.Save()
-    log.Println(m.Name)
 }
 
 func (p *parser) list_of_ports(m *rtl.Module) {
@@ -146,10 +145,8 @@ func (p *parser) module_item(m *rtl.Module) {
     iname := p.token.val
     p.expect(Id)
 
-    m.AddInst(iname, itype)
-
     p.expect(LParen)
-    p.instance_connections(m, iname)
+    p.instance_connections(m, iname, itype)
     p.expect(RParen)
     p.expect(Semicolon)
 }
@@ -210,19 +207,19 @@ func (p *parser) bitrange() (hi, lo int64) {
     return
 }
 
-func (p *parser) instance_connections(m *rtl.Module, iname string) {
+func (p *parser) instance_connections(m *rtl.Module, iname, itype string) {
     // Connections can be empty
     if p.tokenis(RParen) {
         return
     }
 
-    p.instance_connection(m, iname)
+    p.instance_connection(m, iname, itype)
     for p.accept(Comma) {
-        p.instance_connection(m, iname)
+        p.instance_connection(m, iname, itype)
     }
 }
 
-func (p *parser) instance_connection(m *rtl.Module, iname string) {
+func (p *parser) instance_connection(m *rtl.Module, iname, itype string) {
     p.expect(Dot)
 
     formal := p.token.val
@@ -240,7 +237,7 @@ func (p *parser) instance_connection(m *rtl.Module, iname string) {
     }
 
     p.expect(RParen)
-    m.AddInstConn(iname, formal, actual...)
+    m.AddInst(iname, itype, formal, actual)
 }
 
 func (p *parser) primary() (str string) {
