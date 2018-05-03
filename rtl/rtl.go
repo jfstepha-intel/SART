@@ -2,6 +2,7 @@ package rtl
 
 import (
     // "log"
+    "strings"
     // "gopkg.in/mgo.v2/bson"
 )
 
@@ -32,6 +33,7 @@ type Inst struct {
     Type     string     `bson:"type"`
     Formal   string     `bson:"formal"`
     Actual []string     `bson:"actual"`
+    IsPrim   bool       `bson:"isprim"`
 }
 
 func NewInst(parent, name, typ, formal string, actual []string) *Inst {
@@ -42,7 +44,12 @@ func NewInst(parent, name, typ, formal string, actual []string) *Inst {
         Formal: formal,
         Actual: actual,
     }
+    i.SetPrim()
     return i
+}
+
+func (i *Inst) SetPrim() {
+    i.IsPrim = strings.HasPrefix(i.Type, "sncclnt_ec0")
 }
 
 // Module //////////////////////////////////////////////////////////////////////
