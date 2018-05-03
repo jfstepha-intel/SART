@@ -5,7 +5,7 @@ import (
     // "gopkg.in/mgo.v2/bson"
 )
 
-type connmap   map[string][]string
+// Module Node /////////////////////////////////////////////////////////////////
 
 type Node struct {
     Parent string       `bson:"module"`
@@ -14,6 +14,18 @@ type Node struct {
     Width  int          `bson:"width"`
 }
 
+func NewNode(parent, name, typ string, width int) *Node {
+    p := &Node {
+        Parent: parent,
+        Name  : name,
+        Type  : typ,
+        Width : width,
+    }
+    return p
+}
+
+// Instance connections ////////////////////////////////////////////////////////
+
 type Inst struct {
     Parent   string     `bson:"module"`
     Name     string     `bson:"name"`
@@ -21,6 +33,19 @@ type Inst struct {
     Formal   string     `bson:"formal"`
     Actual []string     `bson:"actual"`
 }
+
+func NewInst(parent, name, typ, formal string, actual []string) *Inst {
+    i := &Inst{
+        Parent: parent,
+        Name  : name,
+        Type  : typ,
+        Formal: formal,
+        Actual: actual,
+    }
+    return i
+}
+
+// Module //////////////////////////////////////////////////////////////////////
 
 type Module struct {
     Name    string
@@ -34,27 +59,6 @@ func NewModule(name string) *Module {
         Nodes: make(map[string]*Node),
     }
     return m
-}
-
-func NewNode(parent, name, typ string, width int) *Node {
-    p := &Node {
-        Parent: parent,
-        Name  : name,
-        Type  : typ,
-        Width : width,
-    }
-    return p
-}
-
-func NewInst(parent, name, typ, formal string, actual []string) *Inst {
-    i := &Inst{
-        Parent: parent,
-        Name  : name,
-        Type  : typ,
-        Formal: formal,
-        Actual: actual,
-    }
-    return i
 }
 
 func (m *Module) AddNewNode(name, typ string, width int) {

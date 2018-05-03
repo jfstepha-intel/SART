@@ -163,3 +163,9 @@ func (m *Module) Load() {
         m.AddInst(&inst)
     }
 }
+
+func LoadModule(top string) *Module {
+    m := NewModule(top)
+    m.Load()
+    return m
+}
