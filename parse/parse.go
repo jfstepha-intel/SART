@@ -117,11 +117,11 @@ func (p *parser) list_of_ports(m *rtl.Module) {
     }
     pname := p.token.val
     p.expect(Id)
-    m.AddNewNode(pname, "", 1) // type is not known at this time.
+    m.AddNewNode(pname, "", 0, 0) // type is not known at this time.
     for p.accept(Comma) {
         pname := p.token.val
         p.expect(Id)
-        m.AddNewNode(pname, "", 1)
+        m.AddNewNode(pname, "", 0, 0)
     }
 }
 
@@ -162,20 +162,14 @@ func (p *parser) net_decl(m *rtl.Module) {
         validrange = true
     }
 
-    width := 1
-    if validrange {
-        // width = hi - lo + 1; [1:0] => 2 bits wide
-        width += int(hi-lo)
-    }
-
     name := p.token.val
     p.expect(Id)
-    m.AddNewNode(name, typ, width)
+    m.AddNewNode(name, typ, hi, lo)
 
     for p.accept(Comma) {
         name := p.token.val
         p.expect(Id)
-        m.AddNewNode(name, typ, width)
+        m.AddNewNode(name, typ, hi, lo)
     }
 
     p.expect(Semicolon)

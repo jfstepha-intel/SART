@@ -1,6 +1,7 @@
 package rtl
 
 import (
+    "fmt"
     // "log"
     "strings"
     // "gopkg.in/mgo.v2/bson"
@@ -12,15 +13,13 @@ type Node struct {
     Parent string       `bson:"module"`
     Name   string       `bson:"name"`
     Type   string       `bson:"type"`
-    Width  int          `bson:"width"`
 }
 
-func NewNode(parent, name, typ string, width int) *Node {
+func NewNode(parent, name, typ string) *Node {
     p := &Node {
         Parent: parent,
         Name  : name,
         Type  : typ,
-        Width : width,
     }
     return p
 }
@@ -68,9 +67,19 @@ func NewModule(name string) *Module {
     return m
 }
 
-func (m *Module) AddNewNode(name, typ string, width int) {
-    n := NewNode(m.Name, name, typ, width)
-    m.AddNode(n)
+func (m *Module) AddNewNode(name, typ string, hi, lo int64) {
+    // If hi and lo are both zero there was no range specified. So assume
+    // unindexed single bit.
+    if hi == 0 && lo == 0 {
+        n := NewNode(m.Name, name, typ)
+        m.AddNode(n)
+    } else { // Otherwise emit one per index.
+        for i := hi; i >= lo; i-- {
+            newname := fmt.Sprintf("%s[%d]", name, i)
+            n := NewNode(m.Name, newname, typ)
+            m.AddNode(n)
+        }
+    }
 }
 
 func (m *Module) AddNewInst(name, typ, formal string, actual []string) {
