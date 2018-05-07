@@ -155,11 +155,9 @@ func (p *parser) net_decl(m *rtl.Module) {
     typ := p.token.val
     p.expect(Wire, Input, Inout, Output)
 
-    validrange := false
     var hi, lo int64
     if p.tokenis(LBrack) {
         hi, lo = p.bitrange()
-        validrange = true
     }
 
     name := p.token.val
