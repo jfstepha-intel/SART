@@ -219,10 +219,10 @@ func (p *parser) instance_connection(m *rtl.Module, iname, itype string) {
 
     p.expect(LParen)
 
-    actual := []string{}
+    actual := []rtl.Signal{}
 
     if p.accept(LBrace) {
-        actual = p.list_of_primary()
+        actual = p.list_of_signal()
         p.expect(RBrace)
     } else {
         actual = append(actual, p.primary())
@@ -232,41 +232,55 @@ func (p *parser) instance_connection(m *rtl.Module, iname, itype string) {
     m.AddNewInst(iname, itype, formal, actual)
 }
 
-func (p *parser) primary() (str string) {
-    if p.tokenis(RParen) { // empty primary expression
-        return
+func (p *parser) signal() rtl.Signal {
+    if p.tokenis(RParen) { // empty signal expression
+        return rtl.Signal{}
     }
 
-    str = p.token.val
+    name := p.token.val
     p.expect(Id)
+
+    var hi, lo int64 = 0, 0
+    var err error
 
     // Pick up a subsequent index or bitrange as well
     if p.accept(LBrack) {
-        str += "["
-        n := p.token.val
+        hs := p.token.val
         p.expect(Number)
-        str += n
-        if p.accept(Colon) {
-            n := p.token.val
-            p.expect(Number)
-            str += ":" + n
+        hi, err = strconv.ParseInt(hs, 10, 64)
+        if err != nil {
+            p.stop(err)
         }
+
+        if p.accept(Colon) {
+            // e.g. nptargetm124h_so [12:10]
+            ls := p.token.val
+            p.expect(Number)
+            lo, err = strconv.ParseInt(ls, 10, 64)
+            if err != nil {
+                p.stop(err)
+            }
+        } else {
+            // e.g. bpupmuxselbitm806l_snc[1]
+            name += "[" + hs + "]"
+            hi = 0 // reset
+        }
+
         p.expect(RBrack)
-        str += "]"
     }
 
-    return
+    return rtl.Signal{name, hi, lo}
 }
 
-func (p *parser) list_of_primary() (prims []string) {
-    prim := p.primary()
-    if prim != "" {
-        prims = append(prims, prim)
+func (p *parser) list_of_signal() (signals []rtl.Signal) {
+    sig := p.signal()
+    if sig != (rtl.Signal{}) {
+        signals = append(signals, sig)
     }
     for p.accept(Comma) {
-        prim := p.primary()
-        if prim != "" {
-            prims = append(prims, prim)
+        sig := p.signal()
+        if sig != (rtl.Signal{}) {
+            signals = append(signals, sig)
         }
     }
     return

@@ -82,8 +82,23 @@ func (m *Module) AddNewNode(name, typ string, hi, lo int64) {
     }
 }
 
-func (m *Module) AddNewInst(name, typ, formal string, actual []string) {
-    i := NewInst(m.Name, name, typ, formal, actual)
+func (m *Module) AddNewInst(name, typ, formal string, actual []Signal) {
+    var actuals []string
+
+    // For each actual signal, if the hi or lo are non-zero, then emit names
+    // with index suffixes.
+    for _, a := range actual {
+        if a.Hi == 0 && a.Lo == 0 {
+            actuals = append(actuals, a.Name)
+        } else {
+            for i := a.Hi; i >= a.Lo; i -- {
+                newname := fmt.Sprintf("%s[%d]", a.Name, i)
+                actuals = append(actuals, newname)
+            }
+        }
+    }
+
+    i := NewInst(m.Name, name, typ, formal, actuals)
     m.AddInst(i)
 }
 
@@ -93,4 +108,11 @@ func (m *Module) AddNode(node *Node) {
 
 func (m *Module) AddInst(inst *Inst) {
     m.Insts = append(m.Insts, inst)
+}
+
+// Signal //////////////////////////////////////////////////////////////////////
+
+type Signal struct {
+    Name string
+    Hi, Lo int64
 }
