@@ -225,7 +225,7 @@ func (p *parser) instance_connection(m *rtl.Module, iname, itype string) {
         actual = p.list_of_signal()
         p.expect(RBrace)
     } else {
-        actual = append(actual, p.primary())
+        actual = append(actual, p.signal())
     }
 
     p.expect(RParen)

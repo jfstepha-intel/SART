@@ -3,6 +3,7 @@ package rtl
 import (
     "fmt"
     // "log"
+    "regexp"
     "strings"
     // "gopkg.in/mgo.v2/bson"
 )
@@ -33,6 +34,9 @@ type Inst struct {
     Formal   string     `bson:"formal"`
     Actual []string     `bson:"actual"`
     IsPrim   bool       `bson:"isprim"`
+    IsSeq    bool       `bson:"isseq"`
+    IsOut    bool       `bson:"isout"`
+    IsInp    bool       `bson:"isinp"`
 }
 
 func NewInst(parent, name, typ, formal string, actual []string) *Inst {
@@ -44,11 +48,30 @@ func NewInst(parent, name, typ, formal string, actual []string) *Inst {
         Actual: actual,
     }
     i.SetPrim()
+    i.SetSeq()
+    i.SetDir()
     return i
 }
 
 func (i *Inst) SetPrim() {
     i.IsPrim = strings.HasPrefix(i.Type, "sncclnt_ec0")
+}
+
+func (i *Inst) SetSeq() {
+    i.IsSeq = strings.HasPrefix(i.Type, "sncclnt_ec0f") ||
+              strings.HasPrefix(i.Type, "sncclnt_ec0l")
+}
+
+var odigits = regexp.MustCompile(`o\d*`)
+
+func (i *Inst) SetDir() {
+    if i.IsPrim {
+        // Decipher from name only if this is a primitive.
+        switch {
+            case odigits.MatchString(i.Formal): i.IsOut = true
+        }
+        i.IsInp = !i.IsOut
+    }
 }
 
 // Module //////////////////////////////////////////////////////////////////////
