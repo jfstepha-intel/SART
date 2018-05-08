@@ -133,6 +133,13 @@ func (m *Module) AddInst(inst *Inst) {
     m.Insts = append(m.Insts, inst)
 }
 
+func (m Module) NumNodes() (count int) {
+    for range m.Nodes {
+        count++
+    }
+    return
+}
+
 // Signal //////////////////////////////////////////////////////////////////////
 
 type Signal struct {
