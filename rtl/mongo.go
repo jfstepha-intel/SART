@@ -11,7 +11,7 @@ var mgosession *mgo.Session
 
 const db = "sart"
 
-var collection, nodecoll, instcoll string
+var collection, nodecoll, conncoll string
 
 ////////////////////////////////////////////////////////////////////////////////
 // Worker pool for insert jobs
@@ -57,13 +57,13 @@ func InitMgo(s *mgo.Session, cname string, drop bool) {
     collection = cname
 
     nodecoll = cname + "_nodes"
-    instcoll = cname + "_insts"
+    conncoll = cname + "_conns"
 
     var err error
 
     if drop {
         dropCollection(nodecoll)
-        dropCollection(instcoll)
+        dropCollection(conncoll)
     }
 
     n := mgosession.DB(db).C(nodecoll)
@@ -75,7 +75,7 @@ func InitMgo(s *mgo.Session, cname string, drop bool) {
         log.Fatal(err)
     }
 
-    i := mgosession.DB(db).C(instcoll)
+    i := mgosession.DB(db).C(conncoll)
     err = i.EnsureIndex(mgo.Index{
         Key: []string{"module", "name", "formal"},
         Unique: true,
@@ -111,8 +111,8 @@ func (m *Module) Save() {
         jobs <- insertjob{nodecoll, n}
     }
 
-    for _, i := range m.Insts {
-        jobs <- insertjob{instcoll, i}
+    for _, c := range m.Conns {
+        jobs <- insertjob{conncoll, c}
     }
 }
 
@@ -142,7 +142,7 @@ func (m *Module) Load() {
     }
 
     // instance collection, query and iterator
-    ic := mgosession.DB(db).C(instcoll)
+    ic := mgosession.DB(db).C(conncoll)
     iq := ic.Find(bson.M{"module": m.Name})
     ii := iq.Iter()
 
@@ -153,21 +153,21 @@ func (m *Module) Load() {
                        result["module"], result["name"], err)
         }
 
-        var inst Inst
-        err = bson.Unmarshal(bytes, &inst)
+        var conn Conn
+        err = bson.Unmarshal(bytes, &conn)
         if err != nil {
             log.Fatalf("Unable to umarshal. module:%q name:%q err:%v",
                        result["module"], result["name"], err)
         }
 
-        m.AddInst(&inst)
+        m.AddConn(&conn)
     }
 }
 
 // InstNames returns a map with name-value pairs corresponding to the name and
 // type of the instantiations in a module. Each pair will need a subnet built.
 // The implementation of this method is a simple aggregation pipeline on the
-// insts collection.
+// conns collection.
 //
 // References:
 // 1. https://stackoverflow.com/questions/11973725/how-to-efficiently-perform-distinct-with-multiple-keys
@@ -177,7 +177,7 @@ func (m *Module) Load() {
 func (m Module) InstNames() map[string]string {
     insts := make(map[string]string)
 
-    c := mgosession.DB(db).C(instcoll)
+    c := mgosession.DB(db).C(conncoll)
 
     // Setup the aggregation pipeline
     pipe := c.Pipe([]bson.M{

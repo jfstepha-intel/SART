@@ -231,7 +231,7 @@ func (p *parser) instance_connection(m *rtl.Module, iname, itype string) {
     }
 
     p.expect(RParen)
-    m.AddNewInst(iname, itype, formal, actual)
+    m.AddNewConn(iname, itype, formal, actual)
 }
 
 func (p *parser) signal() rtl.Signal {

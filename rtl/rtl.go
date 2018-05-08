@@ -27,7 +27,7 @@ func NewNode(parent, name, typ string) *Node {
 
 // Instance connections ////////////////////////////////////////////////////////
 
-type Inst struct {
+type Conn struct {
     Parent   string     `bson:"module"`
     Name     string     `bson:"name"`
     Type     string     `bson:"type"`
@@ -39,8 +39,8 @@ type Inst struct {
     IsInp    bool       `bson:"isinp"`
 }
 
-func NewInst(parent, name, typ, formal string, actual []string) *Inst {
-    i := &Inst{
+func NewConn(parent, name, typ, formal string, actual []string) *Conn {
+    i := &Conn{
         Parent: parent,
         Name  : name,
         Type  : typ,
@@ -53,18 +53,18 @@ func NewInst(parent, name, typ, formal string, actual []string) *Inst {
     return i
 }
 
-func (i *Inst) SetPrim() {
+func (i *Conn) SetPrim() {
     i.IsPrim = strings.HasPrefix(i.Type, "sncclnt_ec0")
 }
 
-func (i *Inst) SetSeq() {
+func (i *Conn) SetSeq() {
     i.IsSeq = strings.HasPrefix(i.Type, "sncclnt_ec0f") ||
               strings.HasPrefix(i.Type, "sncclnt_ec0l")
 }
 
 var odigits = regexp.MustCompile(`o\d*`)
 
-func (i *Inst) SetDir() {
+func (i *Conn) SetDir() {
     if i.IsPrim {
         // Decipher from name only if this is a primitive.
         switch {
@@ -79,7 +79,7 @@ func (i *Inst) SetDir() {
 type Module struct {
     Name    string
     Nodes   map[string]*Node
-    Insts   []*Inst
+    Conns   []*Conn
 }
 
 func NewModule(name string) *Module {
@@ -105,7 +105,7 @@ func (m *Module) AddNewNode(name, typ string, hi, lo int64) {
     }
 }
 
-func (m *Module) AddNewInst(name, typ, formal string, actual []Signal) {
+func (m *Module) AddNewConn(name, typ, formal string, actual []Signal) {
     var actuals []string
 
     // For each actual signal, if the hi or lo are non-zero, then emit names
@@ -121,16 +121,16 @@ func (m *Module) AddNewInst(name, typ, formal string, actual []Signal) {
         }
     }
 
-    i := NewInst(m.Name, name, typ, formal, actuals)
-    m.AddInst(i)
+    i := NewConn(m.Name, name, typ, formal, actuals)
+    m.AddConn(i)
 }
 
 func (m *Module) AddNode(node *Node) {
     m.Nodes[node.Name] = node
 }
 
-func (m *Module) AddInst(inst *Inst) {
-    m.Insts = append(m.Insts, inst)
+func (m *Module) AddConn(inst *Conn) {
+    m.Conns = append(m.Conns, inst)
 }
 
 func (m Module) NumNodes() (count int) {
