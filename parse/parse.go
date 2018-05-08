@@ -134,8 +134,10 @@ func (p *parser) module_item(m *rtl.Module) {
 
     // supply0 vss;
     case p.accept(Supply0):
+        name := p.token.val
         p.expect(Id)
         p.expect(Semicolon)
+        m.AddNewNode(name, "wire", 0, 0)
         return
     }
 
