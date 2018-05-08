@@ -164,6 +164,48 @@ func (m *Module) Load() {
     }
 }
 
+// InstNames returns a map with name-value pairs corresponding to the name and
+// type of the instantiations in a module. Each pair will need a subnet built.
+// The implementation of this method is a simple aggregation pipeline on the
+// insts collection.
+//
+// References:
+// 1. https://stackoverflow.com/questions/11973725/how-to-efficiently-perform-distinct-with-multiple-keys
+// 2. https://docs.mongodb.com/manual/reference/operator/aggregation/group
+// 3. https://godoc.org/labix.org/v2/mgo#Collection.Pipe
+//
+func (m Module) InstNames() map[string]string {
+    insts := make(map[string]string)
+
+    c := mgosession.DB(db).C(instcoll)
+
+    // Setup the aggregation pipeline
+    pipe := c.Pipe([]bson.M{
+        // Filter to pick only the connections that apply to this module
+        bson.M{"$match"  : bson.M{"module": m.Name}},
+        // Need only name type fields
+        bson.M{"$project": bson.M{"name": 1, "type": 1}},
+        // Next find distinct name-type pairs
+        bson.M{"$group"  : bson.M{"_id": bson.M{"name": "$name", "type": "$type"}}},
+    })
+
+    // Run and gather all results
+    var result []bson.M
+    err := pipe.All(&result)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // The structure of the returned documents is thus: 
+    // { "_id" : { "name" : "irep61", "type" : "sncclnt_ec0bfm202al1n02x5" } }
+    for _, val := range result {
+        doc := val["_id"].(bson.M)
+        insts[doc["name"].(string)] = doc["type"].(string)
+    }
+
+    return insts
+}
+
 func LoadModule(top string) *Module {
     m := NewModule(top)
     m.Load()
