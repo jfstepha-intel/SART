@@ -3,8 +3,6 @@ package rtl
 import (
     "fmt"
     "log"
-    "strings"
-    // "gopkg.in/mgo.v2/bson"
 )
 
 // Module Node /////////////////////////////////////////////////////////////////
@@ -39,18 +37,6 @@ func NewInst(parent, iname, itype string) *Inst {
         Parent: parent,
         Name  : iname,
         Type  : itype,
-    }
-
-    // Mark if a sequential
-    switch {
-        case strings.HasPrefix(i.Type, "sncclnt_ec0f"): i.IsSeq = true
-        case strings.HasPrefix(i.Type, "sncclnt_ec0l"): i.IsSeq = true
-    }
-
-    // Mark if primitive
-    switch {
-        case strings.HasPrefix(i.Type, "sncclnt_ec0") : i.IsPrim = true
-        case strings.HasPrefix(i.Type, "sncclnt_glbl") : i.IsPrim = true
     }
 
     return i
