@@ -73,7 +73,7 @@ func main() {
         filename := file.Name()
         count++
         
-        if !strings.HasSuffix(filename, ".v") {
+        if !strings.HasSuffix(filename, ".v") && !strings.HasSuffix(filename, ".vg"){
             continue
         }
 
