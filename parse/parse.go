@@ -139,6 +139,20 @@ func (p *parser) module_item(m *rtl.Module) {
         p.expect(Semicolon)
         m.AddNewNode(name, "wire", 0, 0)
         return
+
+    // or an assign statement
+    case p.accept(Assign):
+        // TODO: Need to pick this up and save it because it represent a
+        // connection that needs to be made in the netlist.
+        p.expect(Id)
+        if p.accept(LBrack) {
+            p.expect(Number)
+            p.expect(RBrack)
+        }
+        p.expect(Equals)
+        p.expect(ConstBits, Id)
+        p.expect(Semicolon)
+        return
     }
 
     itype := p.token.val
@@ -229,7 +243,10 @@ func (p *parser) instance_connection(m *rtl.Module, iname, itype string) {
         actual = p.list_of_signal()
         p.expect(RBrace)
     } else {
-        actual = append(actual, p.signal())
+        sig := p.signal()
+        if sig != (rtl.Signal{}) {
+            actual = append(actual, sig)
+        }
     }
 
     p.expect(RParen)
@@ -238,6 +255,10 @@ func (p *parser) instance_connection(m *rtl.Module, iname, itype string) {
 
 func (p *parser) signal() rtl.Signal {
     if p.tokenis(RParen) { // empty signal expression
+        return rtl.Signal{}
+    }
+
+    if p.accept(ConstBits) {
         return rtl.Signal{}
     }
 

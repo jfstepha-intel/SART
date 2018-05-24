@@ -22,6 +22,7 @@ const (
     Semicolon    // ;
     Colon        // :
     Dot          // .
+    Equals       // =
     kModule      // module
     EndModule    // endmodule
     Input        // input
@@ -29,7 +30,9 @@ const (
     Output       // output
     Wire         // wire
     Supply0      // supply0
+    Assign       // assign
     Number       // 1234
+    ConstBits    // 1'b1
     Id           // Identifier
 )
 
@@ -199,6 +202,7 @@ func lexId(l *lexer) statefn {
     case "output"      : l.emit(Output)
     case "wire"        : l.emit(Wire)
     case "supply0"     : l.emit(Supply0)
+    case "assign"      : l.emit(Assign)
     default            : l.emit(Id)
     }
     return lexText
@@ -207,19 +211,21 @@ func lexId(l *lexer) statefn {
 func lexNumber(l *lexer) statefn {
     l.acceptRun(digit)
 
-    // if l.accept("'") {
-    //     // prefixes for binary, decimal, hex no idea what 's' is for
-    //     l.accept("bdhsH")
-    //     l.acceptRun(digit + hex + "_x?")
+    if l.accept("'") {
+        // prefixes for binary, decimal, hex no idea what 's' is for
+        // l.accept("bdhsH")
+        // l.acceptRun(digit + hex + "_x?")
+        l.accept("b")
+        l.acceptRun(digit)
 
-    //     // a word 'b00001111' maybe split like 'b0000 1111'
-    //     for l.accept(" ") {
-    //         l.acceptRun(digit)
-    //     }
-    //     l.emit(ConstBits)
-    // } else {
-        l.emit(Number)
-    // }
+        // // a word 'b00001111' maybe split like 'b0000 1111'
+        // for l.accept(" ") {
+        //     l.acceptRun(digit)
+        // }
+        l.emit(ConstBits)
+    } else {
+     l.emit(Number)
+    }
 
     return lexText
 }
@@ -256,6 +262,7 @@ func lexText(l *lexer) statefn {
         case r == ';': l.emit(Semicolon)
         case r == ':': l.emit(Colon)
         case r == '.': l.emit(Dot)
+        case r == '=': l.emit(Equals)
 
         case r == '\\':
             l.backup()
