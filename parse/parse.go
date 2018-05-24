@@ -147,6 +147,8 @@ func (p *parser) module_item(m *rtl.Module) {
     iname := p.token.val
     p.expect(Id)
 
+    m.AddNewInst(iname, itype)
+
     p.expect(LParen)
     p.instance_connections(m, iname, itype)
     p.expect(RParen)

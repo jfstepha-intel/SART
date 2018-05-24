@@ -2,8 +2,7 @@ package rtl
 
 import (
     "fmt"
-    // "log"
-    "regexp"
+    "log"
     "strings"
     // "gopkg.in/mgo.v2/bson"
 )
@@ -25,53 +24,59 @@ func NewNode(parent, name, typ string) *Node {
     return p
 }
 
+// Instance ////////////////////////////////////////////////////////////////////
+
+type Inst struct {
+    Parent string       `bson:"module"`
+    Name   string       `bson:"name"`
+    Type   string       `bson:"type"`
+    IsPrim bool         `bson:"isprim"`
+    IsSeq  bool         `bson:"isseq"`
+}
+
+func NewInst(parent, iname, itype string) *Inst {
+    i := &Inst {
+        Parent: parent,
+        Name  : iname,
+        Type  : itype,
+    }
+
+    // Mark if a sequential
+    switch {
+        case strings.HasPrefix(i.Type, "sncclnt_ec0f"): i.IsSeq = true
+        case strings.HasPrefix(i.Type, "sncclnt_ec0l"): i.IsSeq = true
+    }
+
+    // Mark if primitive
+    switch {
+        case strings.HasPrefix(i.Type, "sncclnt_ec0") : i.IsPrim = true
+        case strings.HasPrefix(i.Type, "sncclnt_glbl") : i.IsPrim = true
+    }
+
+    return i
+}
+
 // Instance connections ////////////////////////////////////////////////////////
 
 type Conn struct {
     Parent   string     `bson:"module"`
-    Name     string     `bson:"name"`
-    Type     string     `bson:"type"`
+    Iname    string     `bson:"iname"`
+    Itype    string     `bson:"itype"`
     Formal   string     `bson:"formal"`
     Actual []string     `bson:"actual"`
-    IsPrim   bool       `bson:"isprim"`
-    IsSeq    bool       `bson:"isseq"`
     IsOut    bool       `bson:"isout"`
-    IsInp    bool       `bson:"isinp"`
+    IsPrim   bool       `bson:"isprim"`
 }
 
-func NewConn(parent, name, typ, formal string, actual []string) *Conn {
+func NewConn(parent, iname, itype, formal string, actual []string) *Conn {
     i := &Conn{
         Parent: parent,
-        Name  : name,
-        Type  : typ,
+        Iname : iname,
+        Itype : itype,
         Formal: formal,
         Actual: actual,
     }
-    i.SetPrim()
-    i.SetSeq()
-    i.SetDir()
     return i
-}
-
-func (i *Conn) SetPrim() {
-    i.IsPrim = strings.HasPrefix(i.Type, "sncclnt_ec0")
-}
-
-func (i *Conn) SetSeq() {
-    i.IsSeq = strings.HasPrefix(i.Type, "sncclnt_ec0f") ||
-              strings.HasPrefix(i.Type, "sncclnt_ec0l")
-}
-
-var odigits = regexp.MustCompile(`o\d*`)
-
-func (i *Conn) SetDir() {
-    if i.IsPrim {
-        // Decipher from name only if this is a primitive.
-        switch {
-            case odigits.MatchString(i.Formal): i.IsOut = true
-        }
-        i.IsInp = !i.IsOut
-    }
 }
 
 // Module //////////////////////////////////////////////////////////////////////
@@ -79,13 +84,16 @@ func (i *Conn) SetDir() {
 type Module struct {
     Name    string
     Nodes   map[string]*Node
-    Conns   []*Conn
+    Insts   map[string]*Inst
+    Conns   map[string][]*Conn
 }
 
 func NewModule(name string) *Module {
     m := &Module{
         Name : name,
         Nodes: make(map[string]*Node),
+        Insts: make(map[string]*Inst),
+        Conns: make(map[string][]*Conn),
     }
     return m
 }
@@ -94,18 +102,23 @@ func (m *Module) AddNewNode(name, typ string, hi, lo int64) {
     // If hi and lo are both zero there was no range specified. So assume
     // unindexed single bit.
     if hi == 0 && lo == 0 {
-        n := NewNode(m.Name, name, typ)
-        m.AddNode(n)
+        node := NewNode(m.Name, name, typ)
+        m.AddNode(node)
     } else { // Otherwise emit one per index.
         for i := hi; i >= lo; i-- {
             newname := fmt.Sprintf("%s[%d]", name, i)
-            n := NewNode(m.Name, newname, typ)
-            m.AddNode(n)
+            node := NewNode(m.Name, newname, typ)
+            m.AddNode(node)
         }
     }
 }
 
-func (m *Module) AddNewConn(name, typ, formal string, actual []Signal) {
+func (m *Module) AddNewInst(iname, itype string) {
+    inst := NewInst(m.Name, iname, itype)
+    m.AddInst(inst)
+}
+
+func (m *Module) AddNewConn(iname, itype, formal string, actual []Signal) {
     var actuals []string
 
     // For each actual signal, if the hi or lo are non-zero, then emit names
@@ -121,20 +134,46 @@ func (m *Module) AddNewConn(name, typ, formal string, actual []Signal) {
         }
     }
 
-    i := NewConn(m.Name, name, typ, formal, actuals)
-    m.AddConn(i)
+    conn := NewConn(m.Name, iname, itype, formal, actuals)
+    m.AddConn(conn)
 }
 
 func (m *Module) AddNode(node *Node) {
     m.Nodes[node.Name] = node
 }
 
-func (m *Module) AddConn(inst *Conn) {
-    m.Conns = append(m.Conns, inst)
+func (m *Module) AddInst(inst *Inst) {
+    m.Insts[inst.Name] = inst
+}
+
+func (m *Module) AddConn(conn *Conn) {
+    m.Conns[conn.Iname] = append(m.Conns[conn.Iname], conn)
+}
+
+func (m Module) IsSeq(iname string) bool {
+    if inst, ok := m.Insts[iname]; ok {
+        return inst.IsSeq
+    }
+    log.Fatalf("No instance called %q in module %s", iname, m.Name)
+    return false
 }
 
 func (m Module) NumNodes() (count int) {
     for range m.Nodes {
+        count++
+    }
+    return
+}
+
+func (m Module) NumInsts() (count int) {
+    for range m.Insts {
+        count++
+    }
+    return
+}
+
+func (m Module) NumConns() (count int) {
+    for range m.Conns {
         count++
     }
     return

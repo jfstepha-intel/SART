@@ -11,7 +11,7 @@ var mgosession *mgo.Session
 
 const db = "sart"
 
-var collection, nodecoll, conncoll string
+var collection, nodecoll, instcoll, conncoll string
 
 ////////////////////////////////////////////////////////////////////////////////
 // Worker pool for insert jobs
@@ -57,15 +57,18 @@ func InitMgo(s *mgo.Session, cname string, drop bool) {
     collection = cname
 
     nodecoll = cname + "_nodes"
+    instcoll = cname + "_insts"
     conncoll = cname + "_conns"
 
     var err error
 
     if drop {
         dropCollection(nodecoll)
+        dropCollection(instcoll)
         dropCollection(conncoll)
     }
 
+    // Each node in a module must have a unique name
     n := mgosession.DB(db).C(nodecoll)
     err = n.EnsureIndex(mgo.Index{
         Key: []string{"module", "name"},
@@ -75,9 +78,20 @@ func InitMgo(s *mgo.Session, cname string, drop bool) {
         log.Fatal(err)
     }
 
-    i := mgosession.DB(db).C(conncoll)
+    // Each instance in a module must have a unique name
+    i := mgosession.DB(db).C(instcoll)
     err = i.EnsureIndex(mgo.Index{
-        Key: []string{"module", "name", "formal"},
+        Key: []string{"module", "name"},
+        Unique: true,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Each formal name of an instance connection in a module must be unique
+    c := mgosession.DB(db).C(conncoll)
+    err = c.EnsureIndex(mgo.Index{
+        Key: []string{"module", "iname", "formal"},
         Unique: true,
     })
     if err != nil {
@@ -107,12 +121,18 @@ func cache() *mgo.Collection {
 }
 
 func (m *Module) Save() {
-    for _, n := range m.Nodes {
-        jobs <- insertjob{nodecoll, n}
+    for _, node := range m.Nodes {
+        jobs <- insertjob{nodecoll, node}
     }
 
-    for _, c := range m.Conns {
-        jobs <- insertjob{conncoll, c}
+    for _, inst := range m.Insts {
+        jobs <- insertjob{instcoll, inst}
+    }
+
+    for _, conns := range m.Conns {
+        for _, conn := range conns {
+            jobs <- insertjob{conncoll, conn}
+        }
     }
 }
 
@@ -142,7 +162,7 @@ func (m *Module) Load() {
     }
 
     // instance collection, query and iterator
-    ic := mgosession.DB(db).C(conncoll)
+    ic := mgosession.DB(db).C(instcoll)
     iq := ic.Find(bson.M{"module": m.Name})
     ii := iq.Iter()
 
@@ -153,11 +173,33 @@ func (m *Module) Load() {
                        result["module"], result["name"], err)
         }
 
+        var inst Inst
+        err = bson.Unmarshal(bytes, &inst)
+        if err != nil {
+            log.Fatalf("Unable to umarshal. module:%q name:%q err:%v",
+                       result["module"], result["name"], err)
+        }
+
+        m.AddInst(&inst)
+    }
+
+    // connection collection, query and iterator
+    cc := mgosession.DB(db).C(conncoll)
+    cq := cc.Find(bson.M{"module": m.Name})
+    ci := cq.Iter()
+
+    for ci.Next(&result) {
+        bytes, err := bson.Marshal(result)
+        if err !=nil {
+            log.Fatalf("Unable to marshal. module:%q iname:%q err:%v",
+                       result["module"], result["iname"], err)
+        }
+
         var conn Conn
         err = bson.Unmarshal(bytes, &conn)
         if err != nil {
             log.Fatalf("Unable to umarshal. module:%q name:%q err:%v",
-                       result["module"], result["name"], err)
+                       result["module"], result["iname"], err)
         }
 
         m.AddConn(&conn)
