@@ -11,7 +11,7 @@ var mgosession *mgo.Session
 
 const db = "sart"
 
-var collection, nodecoll, instcoll, conncoll string
+var collection, wirecoll, instcoll, conncoll string
 
 ////////////////////////////////////////////////////////////////////////////////
 // Worker pool for insert jobs
@@ -40,7 +40,7 @@ func worker() {
     wg.Done()
 }
 
-// Syncronizers
+// Synchronizers
 
 func DoneMgo() {
     close(jobs)
@@ -56,20 +56,20 @@ func InitMgo(s *mgo.Session, cname string, drop bool) {
     mgosession = s.Copy()
     collection = cname
 
-    nodecoll = cname + "_nodes"
+    wirecoll = cname + "_wires"
     instcoll = cname + "_insts"
     conncoll = cname + "_conns"
 
     var err error
 
     if drop {
-        dropCollection(nodecoll)
+        dropCollection(wirecoll)
         dropCollection(instcoll)
         dropCollection(conncoll)
     }
 
-    // Each node in a module must have a unique name
-    n := mgosession.DB(db).C(nodecoll)
+    // Each wire in a module must have a unique name
+    n := mgosession.DB(db).C(wirecoll)
     err = n.EnsureIndex(mgo.Index{ Key: []string{"module", "name"}, Unique: true })
     if err != nil { log.Fatal(err) }
 
@@ -116,8 +116,8 @@ func cache() *mgo.Collection {
 }
 
 func (m *Module) Save() {
-    for _, node := range m.Nodes {
-        jobs <- insertjob{nodecoll, node}
+    for _, wire := range m.Wires {
+        jobs <- insertjob{wirecoll, wire}
     }
 
     for _, inst := range m.Insts {
@@ -132,28 +132,28 @@ func (m *Module) Save() {
 }
 
 func (m *Module) Load() {
-    // nodes collection, query and iterator
-    nc := mgosession.DB(db).C(nodecoll)
-    nq := nc.Find(bson.M{"module": m.Name})
-    ni := nq.Iter()
+    // wires collection, query and iterator
+    wc := mgosession.DB(db).C(wirecoll)
+    wq := wc.Find(bson.M{"module": m.Name})
+    wi := wq.Iter()
 
     var result bson.M
 
-    for ni.Next(&result) {
+    for wi.Next(&result) {
         bytes, err := bson.Marshal(result)
         if err !=nil {
             log.Fatalf("Unable to marshal. module:%q name:%q err:%v",
                        result["module"], result["name"], err)
         }
 
-        var node Node
-        err = bson.Unmarshal(bytes, &node)
+        var wire Wire
+        err = bson.Unmarshal(bytes, &wire)
         if err != nil {
             log.Fatalf("Unable to umarshal. module:%q name:%q err:%v",
                        result["module"], result["name"], err)
         }
 
-        m.AddNode(&node)
+        m.AddWire(&wire)
     }
 
     // instance collection, query and iterator

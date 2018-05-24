@@ -5,16 +5,16 @@ import (
     "log"
 )
 
-// Module Node /////////////////////////////////////////////////////////////////
+// Module Wire /////////////////////////////////////////////////////////////////
 
-type Node struct {
+type Wire struct {
     Parent string       `bson:"module"`
     Name   string       `bson:"name"`
     Type   string       `bson:"type"`
 }
 
-func NewNode(parent, name, typ string) *Node {
-    p := &Node {
+func NewWire(parent, name, typ string) *Wire {
+    p := &Wire {
         Parent: parent,
         Name  : name,
         Type  : typ,
@@ -69,7 +69,7 @@ func NewConn(parent, iname, itype, formal string, actual []string) *Conn {
 
 type Module struct {
     Name    string
-    Nodes   map[string]*Node
+    Wires   map[string]*Wire
     Insts   map[string]*Inst
     Conns   map[string][]*Conn
 }
@@ -77,24 +77,24 @@ type Module struct {
 func NewModule(name string) *Module {
     m := &Module{
         Name : name,
-        Nodes: make(map[string]*Node),
+        Wires: make(map[string]*Wire),
         Insts: make(map[string]*Inst),
         Conns: make(map[string][]*Conn),
     }
     return m
 }
 
-func (m *Module) AddNewNode(name, typ string, hi, lo int64) {
+func (m *Module) AddNewWire(name, typ string, hi, lo int64) {
     // If hi and lo are both zero there was no range specified. So assume
     // unindexed single bit.
     if hi == 0 && lo == 0 {
-        node := NewNode(m.Name, name, typ)
-        m.AddNode(node)
+        wire := NewWire(m.Name, name, typ)
+        m.AddWire(wire)
     } else { // Otherwise emit one per index.
         for i := hi; i >= lo; i-- {
             newname := fmt.Sprintf("%s[%d]", name, i)
-            node := NewNode(m.Name, newname, typ)
-            m.AddNode(node)
+            wire := NewWire(m.Name, newname, typ)
+            m.AddWire(wire)
         }
     }
 }
@@ -124,8 +124,8 @@ func (m *Module) AddNewConn(iname, itype, formal string, actual []Signal) {
     m.AddConn(conn)
 }
 
-func (m *Module) AddNode(node *Node) {
-    m.Nodes[node.Name] = node
+func (m *Module) AddWire(wire *Wire) {
+    m.Wires[wire.Name] = wire
 }
 
 func (m *Module) AddInst(inst *Inst) {
@@ -144,8 +144,8 @@ func (m Module) IsSeq(iname string) bool {
     return false
 }
 
-func (m Module) NumNodes() (count int) {
-    for range m.Nodes {
+func (m Module) NumWires() (count int) {
+    for range m.Wires {
         count++
     }
     return

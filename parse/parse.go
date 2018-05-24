@@ -117,11 +117,11 @@ func (p *parser) list_of_ports(m *rtl.Module) {
     }
     pname := p.token.val
     p.expect(Id)
-    m.AddNewNode(pname, "", 0, 0) // type is not known at this time.
+    m.AddNewWire(pname, "", 0, 0) // type is not known at this time.
     for p.accept(Comma) {
         pname := p.token.val
         p.expect(Id)
-        m.AddNewNode(pname, "", 0, 0)
+        m.AddNewWire(pname, "", 0, 0)
     }
 }
 
@@ -137,7 +137,7 @@ func (p *parser) module_item(m *rtl.Module) {
         name := p.token.val
         p.expect(Id)
         p.expect(Semicolon)
-        m.AddNewNode(name, "wire", 0, 0)
+        m.AddNewWire(name, "wire", 0, 0)
         return
 
     // or an assign statement
@@ -180,12 +180,12 @@ func (p *parser) net_decl(m *rtl.Module) {
 
     name := p.token.val
     p.expect(Id)
-    m.AddNewNode(name, typ, hi, lo)
+    m.AddNewWire(name, typ, hi, lo)
 
     for p.accept(Comma) {
         name := p.token.val
         p.expect(Id)
-        m.AddNewNode(name, typ, hi, lo)
+        m.AddNewWire(name, typ, hi, lo)
     }
 
     p.expect(Semicolon)
