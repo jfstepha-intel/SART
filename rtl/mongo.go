@@ -70,33 +70,28 @@ func InitMgo(s *mgo.Session, cname string, drop bool) {
 
     // Each node in a module must have a unique name
     n := mgosession.DB(db).C(nodecoll)
-    err = n.EnsureIndex(mgo.Index{
-        Key: []string{"module", "name"},
-        Unique: true,
-    })
-    if err != nil {
-        log.Fatal(err)
-    }
+    err = n.EnsureIndex(mgo.Index{ Key: []string{"module", "name"}, Unique: true })
+    if err != nil { log.Fatal(err) }
 
     // Each instance in a module must have a unique name
     i := mgosession.DB(db).C(instcoll)
-    err = i.EnsureIndex(mgo.Index{
-        Key: []string{"module", "name"},
-        Unique: true,
-    })
-    if err != nil {
-        log.Fatal(err)
-    }
+    err = i.EnsureIndex(mgo.Index{ Key: []string{"module", "name"}, Unique: true })
+    if err != nil { log.Fatal(err) }
+
+    // Index the type as well because there will be update queries using type
+    // as selector
+    err = i.EnsureIndex(mgo.Index{ Key: []string{"type"} })
+    if err != nil { log.Fatal(err) }
 
     // Each formal name of an instance connection in a module must be unique
     c := mgosession.DB(db).C(conncoll)
-    err = c.EnsureIndex(mgo.Index{
-        Key: []string{"module", "iname", "formal"},
-        Unique: true,
-    })
-    if err != nil {
-        log.Fatal(err)
-    }
+    err = c.EnsureIndex(mgo.Index{ Key: []string{"module", "iname", "formal"}, Unique: true })
+    if err != nil { log.Fatal(err) }
+
+    // Index the itype as well because there will be update queries using itype
+    // as selector
+    err = c.EnsureIndex(mgo.Index{ Key: []string{"itype"} })
+    if err != nil { log.Fatal(err) }
 
     // Initialize worker pool for insert jobs
     jobs = make(chan insertjob, 100)
