@@ -122,7 +122,7 @@ func main() {
         fpath := path + "/" + filename
         parsejobs <- fpath
 
-        log.Printf("(%d/%d) %s", count, total, filename)
+        log.Printf("load: (%d/%d) %s", count, total, filename)
     }
 
     // No more parse jobs
@@ -143,7 +143,7 @@ func main() {
     // These are the modules for which a definition is available -- defined
     // modules
     var defnmodules []interface{}
-    err = session.DB("sart").C(cache + "_nodes").Find(nil).Distinct("module", &defnmodules)
+    err = session.DB("sart").C(cache + "_wires").Find(nil).Distinct("module", &defnmodules)
     if err != nil {
         log.Fatal(err)
     }
@@ -189,4 +189,18 @@ func main() {
     updatewg.Wait()
 
     ////////////////////////////////////////////////////////////////////////////
+
+    log.Println("Marking sequentials..")
+
+    clog, err := session.DB("sart").C(cache+"_insts").UpdateAll(
+        // everything that starts with ec0f or ec0l
+        bson.M{"type": bson.RegEx{"^ec0[fl]", ""}}, // Selector interface
+        bson.M{"$set": bson.M{"isseq": true}},      // Updater  interface
+    )
+
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    log.Println("Done. Found:", clog.Matched, "; Updated:", clog.Updated)
 }
