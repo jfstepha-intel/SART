@@ -203,4 +203,32 @@ func main() {
     }
 
     log.Println("Done. Found:", clog.Matched, "; Updated:", clog.Updated)
+
+    ////////////////////////////////////////////////////////////////////////////
+
+    log.Println("Marking outputs..")
+
+    outs := []string{
+        "carry",
+        "clkout",
+        "o",
+        "o1",
+        "out0",
+        "so",
+        "sum",
+    }
+
+    for _, out := range outs {
+        clog, err := session.DB("sart").C(cache+"_conns").UpdateAll(
+            bson.M{"formal": out, "isprim": true},
+            bson.M{"$set": bson.M{"isout": true}},
+        )
+
+        if err != nil {
+            log.Fatal(err)
+        }
+        log.Printf("out: %s Found: %d, Updated: %d", out, clog.Matched, clog.Updated)
+    }
+
+    log.Println("Done.")
 }
