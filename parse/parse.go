@@ -54,8 +54,8 @@ func (p *parser) expect(types ...ItemType) {
         return
     }
     log.Output(2,
-               fmt.Sprintf("Expecting %v but got %v at line %d, pos %d.",
-                           types, p.token, p.l.line, p.l.lpos))
+               fmt.Sprintf("Expecting %v but got %v at line %d, pos %d. (%s)",
+                           types, p.token, p.l.line, p.l.lpos, p.l.name))
     os.Exit(1)
 }
 
@@ -151,6 +151,10 @@ func (p *parser) module_item(m *rtl.Module) {
         }
         p.expect(Equals)
         p.expect(ConstBits, Id)
+        if p.accept(LBrack) {
+            p.expect(Number)
+            p.expect(RBrack)
+        }
         p.expect(Semicolon)
         return
     }

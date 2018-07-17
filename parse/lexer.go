@@ -140,8 +140,11 @@ func (l *lexer) errorf(format string, args ...interface{}) statefn {
 func lexLineComment(l *lexer) statefn {
     l.accept("/")
     l.accept("/")
-    for r := l.next(); r != '\n'; r = l.next() {}
+    for r := l.next(); r != '\n'; r = l.next() {
+        l.ignore()
+    }
     l.line++
+    l.ignore()
     return lexText
 }
 
