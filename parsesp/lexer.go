@@ -129,7 +129,7 @@ func (l *lexer) errorf(format string, args ...interface{}) statefn {
 }
 
 const alpha = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_."
-const alnum = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_."
+const alnum = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.[]#=\"-"
 const digit = "0123456789"
 const bit   = "01"
 const hex   = "abcdefABCDEF"
@@ -231,7 +231,7 @@ func lexText(l *lexer) statefn {
         //// case r == '}': l.emit(RBrace)
         //// case r == ',': l.emit(Comma)
         //// case r == ';': l.emit(Semicolon)
-        case r == '=': l.emit(Equals)
+        // case r == '=': l.emit(Equals)
         case r == ':': l.emit(Colon)
         case r == '+': l.emit(Plus)
 

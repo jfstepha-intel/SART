@@ -6,6 +6,7 @@ import (
     "io/ioutil"
     "log"
     "os"
+    // "strings"
 )
 
 var UnknownToken = fmt.Errorf("Unknown token")
@@ -121,7 +122,6 @@ func (p *parser) subckt() {
     p.expect(Subckt)
     log.Println("subckt:", p.token)
     for p.accept(Id) {
-        // log.Println(p.token)
     }
 
     p.expect(Newline)
@@ -134,8 +134,7 @@ func (p *parser) subckt() {
 }
 
 func (p *parser) comment() {
-    for p.tokenis(Id, Star, Colon, Number) {
-        p.accept(Id, Star, Colon, Number)
+    for p.accept(Id, Star, Colon, Number) {
     }
 
     if p.tokenis(Input, Inout, Output) {
@@ -149,23 +148,36 @@ func (p *parser) portspec() {
     // log.Println("portspec:", p.token)
     p.expect(Input, Inout, Output)
     p.expect(Colon)
-    for p.tokenis(Id) {
-        // log.Println("port id:", p.token)
-        p.expect(Id)
+    for p.accept(Id) {
     }
     p.expect(Newline)
+
+    for p.accept(Star) {
+        if p.accept(Plus) {
+            for p.accept(Id) {
+            }
+            p.expect(Newline)
+        } else {
+            p.comment()
+            break
+        }
+    }
 }
 
 func (p *parser) instance() {
     p.expect(Id) // instance name
     for p.accept(Id) {
     }
+    p.expect(Newline)
 
-    for p.accept(Equals) {
-        p.expect(Number)
-        if p.accept(Id) {
-        } else {
-            p.expect(Newline)
-        }
+    for p.tokenis(Plus) {
+        p.plusline()
     }
+}
+
+func (p *parser) plusline() {
+    p.expect(Plus)
+    for p.accept(Id) {
+    }
+    p.expect(Newline)
 }
