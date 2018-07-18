@@ -17,8 +17,9 @@ const (
     Colon       // :
     Equals      // =
     Plus        // +
-    Global      // GLOBAL
-    Subckt      // SUBCKT
+    Global      // .GLOBAL
+    Subckt      // .SUBCKT
+    Ends        // .ENDS
     Input       // INPUT
     Inout       // INOUT
     Output      // OUTPUT
@@ -149,6 +150,7 @@ func lexId(l *lexer) statefn {
     switch {
     case str == ".GLOBAL": l.emit(Global)
     case str == ".SUBCKT": l.emit(Subckt)
+    case str == ".ENDS"  : l.emit(Ends)
     case str == "INPUT"  : l.emit(Input)
     case str == "INOUT"  : l.emit(Inout)
     case str == "OUTPUT" : l.emit(Output)
