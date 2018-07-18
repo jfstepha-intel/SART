@@ -103,10 +103,8 @@ func (p *parser) subckt() {
     }
     p.expect(Newline)
 
-    for p.accept(Plus) {
-        for p.accept(Id) {
-        }
-        p.expect(Newline)
+    for p.tokenis(Plus) {
+        p.plusline()
     }
 }
 
