@@ -24,6 +24,7 @@ const (
     Inout       // INOUT
     Output      // OUTPUT
     Number      // 1234
+    Property    // L=0.02u
     Id          // Identifier
 )
 
@@ -146,17 +147,14 @@ func isAlpha(r rune) bool {
 func lexId(l *lexer) statefn {
     l.acceptRun(alnum)
     str := l.input[l.start:l.pos]
-    switch str {
-    case ".GLOBAL"      : l.emit(Global)
-    case ".SUBCKT"      : l.emit(Subckt)
-    // case "endmodule"   : l.emit(EndModule)
-    case "INPUT"       : l.emit(Input)
-    case "INOUT"       : l.emit(Inout)
-    case "OUTPUT"      : l.emit(Output)
-    // case "wire"        : l.emit(Wire)
-    // case "supply0"     : l.emit(Supply0)
-    // case "assign"      : l.emit(Assign)
-    default            : l.emit(Id)
+    switch {
+    case str == ".GLOBAL": l.emit(Global)
+    case str == ".SUBCKT": l.emit(Subckt)
+    case str == "INPUT"  : l.emit(Input)
+    case str == "INOUT"  : l.emit(Inout)
+    case str == "OUTPUT" : l.emit(Output)
+    case strings.IndexRune(str, '=') >= 0: l.emit(Property)
+    default              : l.emit(Id)
     }
     return lexText
 }
@@ -170,21 +168,7 @@ func lexNumber(l *lexer) statefn {
 
     l.accept(metric)
 
-    // if l.accept("'") {
-    //     // prefixes for binary, decimal, hex no idea what 's' is for
-    //     // l.accept("bdhsH")
-    //     // l.acceptRun(digit + hex + "_x?")
-    //     l.accept("b")
-    //     l.acceptRun(digit)
-
-    //     // // a word 'b00001111' maybe split like 'b0000 1111'
-    //     // for l.accept(" ") {
-    //     //     l.acceptRun(digit)
-    //     // }
-    //     l.emit(ConstBits)
-    // } else {
-        l.emit(Number)
-    // }
+    l.emit(Number)
 
     return lexText
 }
@@ -216,22 +200,7 @@ func lexText(l *lexer) statefn {
             l.line++
             l.lpos = 1
             l.emit(Newline)
-            // l.ignore()
 
-        //// case r == '\r':
-        ////     l.line++
-        ////     l.lpos = 1
-        ////     l.ignore()
-
-        //// case r == '(': l.emit(LParen)
-        //// case r == ')': l.emit(RParen)
-        //// case r == '[': l.emit(LBrack)
-        //// case r == ']': l.emit(RBrack)
-        //// case r == '{': l.emit(LBrace)
-        //// case r == '}': l.emit(RBrace)
-        //// case r == ',': l.emit(Comma)
-        //// case r == ';': l.emit(Semicolon)
-        // case r == '=': l.emit(Equals)
         case r == ':': l.emit(Colon)
         case r == '+': l.emit(Plus)
 

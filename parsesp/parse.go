@@ -78,16 +78,6 @@ func (p parser) stop(err error) {
 func (p *parser) statements() {
     for {
         switch {
-        // case p.tokenis(Dot):
-        //     p.expect(Dot)
-        //     switch {
-        //     case p.tokenis(Global):
-        //         p.global()
-
-        //     case p.tokenis(Subckt):
-        //         p.subckt()
-        //     }
-
         case p.accept(Newline):
 
         case p.tokenis(Star):
@@ -107,7 +97,6 @@ func (p *parser) statements() {
 
         default:
             p.stop(UnknownToken)
-
         }
     }
 }
@@ -121,9 +110,8 @@ func (p *parser) global() {
 func (p *parser) subckt() {
     p.expect(Subckt)
     log.Println("subckt:", p.token)
-    for p.accept(Id) {
+    for p.accept(Id, Property) {
     }
-
     p.expect(Newline)
 
     for p.accept(Plus) {
@@ -166,7 +154,7 @@ func (p *parser) portspec() {
 
 func (p *parser) instance() {
     p.expect(Id) // instance name
-    for p.accept(Id) {
+    for p.accept(Id, Property) {
     }
     p.expect(Newline)
 
@@ -177,7 +165,7 @@ func (p *parser) instance() {
 
 func (p *parser) plusline() {
     p.expect(Plus)
-    for p.accept(Id) {
+    for p.accept(Id, Property) {
     }
     p.expect(Newline)
 }
