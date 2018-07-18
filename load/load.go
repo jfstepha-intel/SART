@@ -12,6 +12,7 @@ import (
     "gopkg.in/mgo.v2/bson"
 
     "sart/parse"
+    "sart/parsesp"
     "sart/rtl"
     "sart/set"
 )
@@ -23,7 +24,11 @@ func parseWorker(wg *sync.WaitGroup, jobs <-chan string) {
             log.Fatal(err)
         }
 
-        parse.New(path, file)
+        if strings.HasSuffix(path, ".sp") {
+            parsesp.New(path, file)
+        } else {
+            parse.New(path, file)
+        }
 
         file.Close()
     }
@@ -114,8 +119,9 @@ func main() {
         filename := file.Name()
         count++
         
-        if  !strings.HasSuffix(filename, ".v") &&
-            !strings.HasSuffix(filename, ".vg") {
+        if  !strings.HasSuffix(filename, ".v")  &&
+            !strings.HasSuffix(filename, ".vg") && 
+            !strings.HasSuffix(filename, ".sp") {
             continue
         }
 
@@ -132,6 +138,7 @@ func main() {
     rtl.DoneMgo() // Signal no more mongo insert jobs
     rtl.WaitMgo() // Wait for all insert jobs to complete
 
+    return
 
     ////////////////////////////////////////////////////////////////////////////
     // At this point all available information in the input netlists have been
