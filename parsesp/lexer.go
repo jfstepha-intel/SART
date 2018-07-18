@@ -2,7 +2,6 @@ package parsesp
 
 import (
     "fmt"
-    // "log"
     "strings"
     "unicode/utf8"
 )
@@ -161,15 +160,11 @@ func lexId(l *lexer) statefn {
 
 func lexNumber(l *lexer) statefn {
     l.acceptRun(digit)
-
     if l.accept(".") {
         l.acceptRun(digit)
     }
-
     l.accept(metric)
-
     l.emit(Number)
-
     return lexText
 }
 
@@ -185,14 +180,9 @@ func lexStar(l *lexer) statefn {
 
 func lexText(l *lexer) statefn {
     for {
-        // log.Printf("%q", string(l.peek()))
         r := l.next()
         if r == eof { break }
         switch {
-        //// case r == '/':
-        ////     l.backup()
-        ////     return lexSlash
-
         case r == ' ': l.ignore()
         case r == '\t': l.ignore()
 
@@ -204,18 +194,7 @@ func lexText(l *lexer) statefn {
         case r == ':': l.emit(Colon)
         case r == '+': l.emit(Plus)
 
-        /// case r == '.':
-        ///     lexDot()
-        ///     // l.emit(Dot)
-
-        case r == '*':
-            l.emit(Star)
-            // l.backup()
-            // return lexStar
-
-        //// case r == '\\':
-        ////     l.backup()
-        ////     return lexEscId
+        case r == '*': l.emit(Star)
 
         case isDigit(r):
             l.backup()

@@ -78,25 +78,14 @@ func (p parser) stop(err error) {
 func (p *parser) statements() {
     for {
         switch {
+        // Ignore whitespace
         case p.accept(Newline):
-
-        case p.tokenis(Star):
-            p.comment()
-
-        case p.tokenis(Global):
-            p.global()
-
-        case p.tokenis(Subckt):
-            p.subckt()
-
-        case p.tokenis(Id):
-            p.instance()
-
-        case p.tokenis(EOF):
-            return
-
-        default:
-            p.stop(UnknownToken)
+        case p.tokenis(Star)  : p.comment()
+        case p.tokenis(Global): p.global()
+        case p.tokenis(Subckt): p.subckt()
+        case p.tokenis(Id)    : p.instance()
+        case p.tokenis(EOF)   : return
+        default               : p.stop(UnknownToken)
         }
     }
 }
@@ -133,7 +122,6 @@ func (p *parser) comment() {
 }
 
 func (p *parser) portspec() {
-    // log.Println("portspec:", p.token)
     p.expect(Input, Inout, Output)
     p.expect(Colon)
     for p.accept(Id) {
@@ -141,10 +129,8 @@ func (p *parser) portspec() {
     p.expect(Newline)
 
     for p.accept(Star) {
-        if p.accept(Plus) {
-            for p.accept(Id) {
-            }
-            p.expect(Newline)
+        if p.tokenis(Plus) {
+            p.plusline()
         } else {
             p.comment()
             break
