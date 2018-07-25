@@ -83,7 +83,6 @@ func (p *parser) statements() {
         case p.tokenis(Star)  : p.comment()
         case p.tokenis(Global): p.global()
         case p.tokenis(Subckt): p.subckt()
-        case p.tokenis(Id)    : p.instance()
         case p.tokenis(EOF)   : return
         default               : p.stop(UnknownToken)
         }
@@ -106,20 +105,35 @@ func (p *parser) subckt() {
     for p.tokenis(Plus) {
         p.plusline()
     }
+
+    p.portspec()
+    p.portspec()
+    p.portspec()
+
+    for p.accept(Newline) {
+    }
+
+    if p.tokenis(Star) {
+        p.comment()
+    }
+
+    for p.tokenis(Id) {
+        p.instance()
+    }
+
+    p.expect(Ends)
+    p.expect(Id)
 }
 
 func (p *parser) comment() {
+    p.expect(Star)
     for p.accept(Id, Star, Colon, Number) {
     }
-
-    if p.tokenis(Input, Inout, Output) {
-        p.portspec()
-    } else {
-        p.expect(Newline)
-    }
+    p.expect(Newline)
 }
 
 func (p *parser) portspec() {
+    p.accept(Star)
     p.expect(Input, Inout, Output)
     p.expect(Colon)
     for p.accept(Id) {
@@ -129,9 +143,6 @@ func (p *parser) portspec() {
     for p.accept(Star) {
         if p.tokenis(Plus) {
             p.plusline()
-        } else {
-            p.comment()
-            break
         }
     }
 }
