@@ -7,6 +7,7 @@ import (
     "log"
     "os"
     // "strings"
+    "sart/rtl"
 )
 
 var UnknownToken = fmt.Errorf("Unknown token")
@@ -97,7 +98,10 @@ func (p *parser) global() {
 
 func (p *parser) subckt() {
     p.expect(Subckt)
-    log.Println("subckt:", p.token)
+
+    name := p.token.val
+    m := rtl.NewModule(name)
+
     for p.accept(Id, Property) {
     }
     p.expect(Newline)
@@ -106,9 +110,9 @@ func (p *parser) subckt() {
         p.plusline()
     }
 
-    p.portspec()
-    p.portspec()
-    p.portspec()
+    p.portspec(m)
+    p.portspec(m)
+    p.portspec(m)
 
     for p.accept(Newline) {
     }
@@ -123,6 +127,8 @@ func (p *parser) subckt() {
 
     p.expect(Ends)
     p.expect(Id)
+    log.Println("subckt:", m.Name)
+    m.Save()
 }
 
 func (p *parser) comment() {
@@ -132,17 +138,28 @@ func (p *parser) comment() {
     p.expect(Newline)
 }
 
-func (p *parser) portspec() {
+func (p *parser) portspec(m *rtl.Module) {
     p.accept(Star)
+
+    signal_type := p.token.val
     p.expect(Input, Inout, Output)
+
     p.expect(Colon)
-    for p.accept(Id) {
+
+    for p.tokenis(Id) {
+        signal_name := p.token.val
+        m.AddNewWire(signal_name, signal_type, 0, 0)
+        p.expect(Id)
     }
+
     p.expect(Newline)
 
     for p.accept(Star) {
         if p.tokenis(Plus) {
-            p.plusline()
+            ids := p.plusline()
+            for _, signal_name := range ids {
+                m.AddNewWire(signal_name, signal_type, 0, 0)
+            }
         }
     }
 }
@@ -158,9 +175,12 @@ func (p *parser) instance() {
     }
 }
 
-func (p *parser) plusline() {
+func (p *parser) plusline() (ids []string) {
     p.expect(Plus)
-    for p.accept(Id, Property) {
+    for p.tokenis(Id, Property) {
+        ids = append(ids, p.token.val)
+        p.expect(Id, Property)
     }
     p.expect(Newline)
+    return
 }
