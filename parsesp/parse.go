@@ -150,7 +150,9 @@ func (p *parser) subckt() {
 
 func (p *parser) comment() {
     p.expect(Star)
-    for p.accept(Id, Star, Colon, Number) {
+    // Ignore everything until newline
+    for !p.tokenis(Newline) {
+        p.next()
     }
     p.expect(Newline)
 }
