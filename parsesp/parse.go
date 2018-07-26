@@ -99,6 +99,12 @@ func (p *parser) global() {
 func (p *parser) subckt() {
     p.expect(Subckt)
 
+    // If the name of the subckt is too long, it could bet bumped down to a
+    // newline starting with Plus.
+    if p.accept(Newline) {
+        p.expect(Plus)
+    }
+
     name := p.token.val
     m := rtl.NewModule(name)
 
