@@ -105,34 +105,45 @@ func (p *parser) subckt() {
         p.expect(Plus)
     }
 
+    // The first identifier is the name of the subckt.
     name := p.token.val
     m := rtl.NewModule(name)
 
+    // Subsequent identifiers till the newline are ports.
     for p.accept(Id, Property) {
     }
     p.expect(Newline)
 
+    // If there are more ports, the subsequent lines with port names will start
+    // with a Plus.
     for p.tokenis(Plus) {
         p.plusline()
     }
 
+    // INPUT, OUTPUT and INOUT
     p.portspec(m)
     p.portspec(m)
     p.portspec(m)
 
+    // There usually are newlines after this; ignore.
     for p.accept(Newline) {
     }
 
+    // There usually are comments or line delimitters around here; ignore.
     if p.tokenis(Star) {
         p.comment()
     }
 
+    // Next will be instantiations of other subckts. Those lines will start
+    // with identifiers.
     for p.tokenis(Id) {
         p.instance()
     }
 
+    // Watch for the .ENDS directive followed by the name of the subckt.
     p.expect(Ends)
     p.expect(Id)
+
     log.Println("subckt:", m.Name)
     m.Save()
 }
