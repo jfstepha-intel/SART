@@ -6,7 +6,7 @@ import (
     "io/ioutil"
     "log"
     "os"
-    // "strings"
+    "strings"
     "sart/rtl"
 )
 
@@ -186,9 +186,15 @@ func (p *parser) portspec(m *rtl.Module) {
 
 func (p *parser) instance(m *rtl.Module) {
     // log.Println(p.token)
+    payload := []string{}
     for state := saveiname; state != nil; {
-        log.Println(state)
-        state = state(p)
+        state = state(p, &payload)
+    }
+    iname := payload[0]
+    itype := payload[len(payload)-1]
+
+    if strings.HasPrefix(iname, "X") {
+        m.AddNewInst(iname, itype)
     }
 }
 
@@ -204,7 +210,7 @@ func (p *parser) plusline() (ids []string) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type istatefn func(*parser) istatefn
+type istatefn func(*parser, *[]string) istatefn
 
 func (p *parser) errorf(format string, args ...interface{}) istatefn {
     log.Output(2, fmt.Sprintf(format, args...))
@@ -212,9 +218,11 @@ func (p *parser) errorf(format string, args ...interface{}) istatefn {
     return nil
 }
 
-func saveiname(p *parser) istatefn {
+func saveiname(p *parser, inst *[]string) istatefn {
     // log.Println("saveiname", p.token)
+    iname := p.token.val
     p.expect(Id)
+    *inst = append(*inst, iname)
     switch {
         case p.tokenis(Id)      : return add2list
         case p.accept(Newline)  : return newline1
@@ -222,9 +230,11 @@ func saveiname(p *parser) istatefn {
     }
 }
 
-func add2list(p *parser) istatefn {
+func add2list(p *parser, inst *[]string) istatefn {
     // log.Println("add2list", p.token)
+    actual := p.token.val
     p.expect(Id)
+    *inst = append(*inst, actual)
     switch {
         case p.tokenis(Id)      : return add2list
         case p.tokenis(Property): return properties
@@ -233,7 +243,7 @@ func add2list(p *parser) istatefn {
     }
 }
 
-func newline1(p *parser) istatefn {
+func newline1(p *parser, inst *[]string) istatefn {
     // log.Println("newline1", p.token)
     switch {
         case p.accept(Plus)     : return idorprop
@@ -241,7 +251,7 @@ func newline1(p *parser) istatefn {
     }
 }
 
-func idorprop(p *parser) istatefn {
+func idorprop(p *parser, inst *[]string) istatefn {
     // log.Println("idorprop", p.token)
     switch {
         case p.tokenis(Id)      : return add2list
@@ -250,7 +260,7 @@ func idorprop(p *parser) istatefn {
     }
 }
 
-func poplist(p *parser) istatefn {
+func poplist(p *parser, inst *[]string) istatefn {
     // log.Println("poplist", p.token)
     switch {
         case p.tokenis(Id, Ends): return success
@@ -259,7 +269,7 @@ func poplist(p *parser) istatefn {
     }
 }
 
-func properties(p *parser) istatefn {
+func properties(p *parser, inst *[]string) istatefn {
     // log.Println("properties", p.token)
     p.expect(Property)
     switch {
@@ -269,7 +279,7 @@ func properties(p *parser) istatefn {
     }
 }
 
-func newline2(p *parser) istatefn {
+func newline2(p *parser, inst *[]string) istatefn {
     // log.Println("newline2", p.token)
     switch {
         case p.accept(Plus)     : return newline3
@@ -277,7 +287,7 @@ func newline2(p *parser) istatefn {
     }
 }
 
-func newline3(p *parser) istatefn {
+func newline3(p *parser, inst *[]string) istatefn {
     // log.Println("newline3", p.token)
     switch {
         case p.tokenis(Property): return properties
@@ -285,6 +295,6 @@ func newline3(p *parser) istatefn {
     }
 }
 
-func success(p *parser) istatefn {
+func success(p *parser, inst *[]string) istatefn {
     return nil
 }
