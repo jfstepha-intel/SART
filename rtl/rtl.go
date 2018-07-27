@@ -5,16 +5,16 @@ import (
     "log"
 )
 
-// Module Wire /////////////////////////////////////////////////////////////////
+// Module Port /////////////////////////////////////////////////////////////////
 
-type Wire struct {
+type Port struct {
     Parent string       `bson:"module"`
     Name   string       `bson:"name"`
     Type   string       `bson:"type"`
 }
 
-func NewWire(parent, name, typ string) *Wire {
-    p := &Wire {
+func NewPort(parent, name, typ string) *Port {
+    p := &Port {
         Parent: parent,
         Name  : name,
         Type  : typ,
@@ -69,7 +69,7 @@ func NewConn(parent, iname, itype, formal string, actual []string) *Conn {
 
 type Module struct {
     Name    string
-    Wires   map[string]*Wire
+    Ports   map[string]*Port
     Insts   map[string]*Inst
     Conns   map[string][]*Conn
 }
@@ -77,24 +77,24 @@ type Module struct {
 func NewModule(name string) *Module {
     m := &Module{
         Name : name,
-        Wires: make(map[string]*Wire),
+        Ports: make(map[string]*Port),
         Insts: make(map[string]*Inst),
         Conns: make(map[string][]*Conn),
     }
     return m
 }
 
-func (m *Module) AddNewWire(name, typ string, hi, lo int64) {
+func (m *Module) AddNewPort(name, typ string, hi, lo int64) {
     // If hi and lo are both zero there was no range specified. So assume
     // unindexed single bit.
     if hi == 0 && lo == 0 {
-        wire := NewWire(m.Name, name, typ)
-        m.AddWire(wire)
+        port := NewPort(m.Name, name, typ)
+        m.AddPort(port)
     } else { // Otherwise emit one per index.
         for i := hi; i >= lo; i-- {
             newname := fmt.Sprintf("%s[%d]", name, i)
-            wire := NewWire(m.Name, newname, typ)
-            m.AddWire(wire)
+            port := NewPort(m.Name, newname, typ)
+            m.AddPort(port)
         }
     }
 }
@@ -124,8 +124,8 @@ func (m *Module) AddNewConn(iname, itype, formal string, actual []Signal) {
     m.AddConn(conn)
 }
 
-func (m *Module) AddWire(wire *Wire) {
-    m.Wires[wire.Name] = wire
+func (m *Module) AddPort(port *Port) {
+    m.Ports[port.Name] = port
 }
 
 func (m *Module) AddInst(inst *Inst) {
@@ -144,8 +144,8 @@ func (m Module) IsSeq(iname string) bool {
     return false
 }
 
-func (m Module) NumWires() (count int) {
-    for range m.Wires {
+func (m Module) NumPorts() (count int) {
+    for range m.Ports {
         count++
     }
     return

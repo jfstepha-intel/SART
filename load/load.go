@@ -11,7 +11,7 @@ import (
     "gopkg.in/mgo.v2"
     "gopkg.in/mgo.v2/bson"
 
-    "sart/parse"
+    // "sart/parse"
     "sart/parsesp"
     "sart/rtl"
     "sart/set"
@@ -24,11 +24,7 @@ func parseWorker(wg *sync.WaitGroup, jobs <-chan string) {
             log.Fatal(err)
         }
 
-        if strings.HasSuffix(path, ".sp") {
-            parsesp.New(path, file)
-        } else {
-            parse.New(path, file)
-        }
+        parsesp.New(path, file)
 
         file.Close()
     }
@@ -119,9 +115,7 @@ func main() {
         filename := file.Name()
         count++
         
-        if  !strings.HasSuffix(filename, ".v")  &&
-            !strings.HasSuffix(filename, ".vg") && 
-            !strings.HasSuffix(filename, ".sp") {
+        if !strings.HasSuffix(filename, ".sp") {
             continue
         }
 

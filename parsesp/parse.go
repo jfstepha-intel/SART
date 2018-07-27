@@ -168,7 +168,7 @@ func (p *parser) portspec(m *rtl.Module) {
 
     for p.tokenis(Id) {
         signal_name := p.token.val
-        m.AddNewWire(signal_name, signal_type, 0, 0)
+        m.AddNewPort(signal_name, signal_type, 0, 0)
         p.expect(Id)
     }
 
@@ -178,7 +178,7 @@ func (p *parser) portspec(m *rtl.Module) {
         if p.tokenis(Plus) {
             ids := p.plusline()
             for _, signal_name := range ids {
-                m.AddNewWire(signal_name, signal_type, 0, 0)
+                m.AddNewPort(signal_name, signal_type, 0, 0)
             }
         }
     }

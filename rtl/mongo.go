@@ -11,7 +11,7 @@ var mgosession *mgo.Session
 
 const db = "sart"
 
-var collection, wirecoll, instcoll, conncoll string
+var collection, portcoll, instcoll, conncoll string
 
 ////////////////////////////////////////////////////////////////////////////////
 // Worker pool for insert jobs
@@ -56,20 +56,20 @@ func InitMgo(s *mgo.Session, cname string, drop bool) {
     mgosession = s.Copy()
     collection = cname
 
-    wirecoll = cname + "_wires"
+    portcoll = cname + "_ports"
     instcoll = cname + "_insts"
     conncoll = cname + "_conns"
 
     var err error
 
     if drop {
-        dropCollection(wirecoll)
+        dropCollection(portcoll)
         dropCollection(instcoll)
         dropCollection(conncoll)
     }
 
-    // Each wire in a module must have a unique name
-    n := mgosession.DB(db).C(wirecoll)
+    // Each port in a module must have a unique name
+    n := mgosession.DB(db).C(portcoll)
     err = n.EnsureIndex(mgo.Index{ Key: []string{"module", "name"}, Unique: true })
     if err != nil { log.Fatal(err) }
 
@@ -116,8 +116,8 @@ func cache() *mgo.Collection {
 }
 
 func (m *Module) Save() {
-    for _, wire := range m.Wires {
-        jobs <- insertjob{wirecoll, wire}
+    for _, port := range m.Ports {
+        jobs <- insertjob{portcoll, port}
     }
 
     for _, inst := range m.Insts {
@@ -132,8 +132,8 @@ func (m *Module) Save() {
 }
 
 func (m *Module) Load() {
-    // wires collection, query and iterator
-    wc := mgosession.DB(db).C(wirecoll)
+    // ports collection, query and iterator
+    wc := mgosession.DB(db).C(portcoll)
     wq := wc.Find(bson.M{"module": m.Name})
     wi := wq.Iter()
 
@@ -146,14 +146,14 @@ func (m *Module) Load() {
                        result["module"], result["name"], err)
         }
 
-        var wire Wire
-        err = bson.Unmarshal(bytes, &wire)
+        var port Port
+        err = bson.Unmarshal(bytes, &port)
         if err != nil {
             log.Fatalf("Unable to umarshal. module:%q name:%q err:%v",
                        result["module"], result["name"], err)
         }
 
-        m.AddWire(&wire)
+        m.AddPort(&port)
     }
 
     // instance collection, query and iterator
