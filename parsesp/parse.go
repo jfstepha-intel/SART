@@ -11,6 +11,7 @@ import (
 )
 
 var UnknownToken = fmt.Errorf("Unknown token")
+var BadState = fmt.Errorf("Bad State")
 
 type parser struct {
     l      *lexer
@@ -137,7 +138,7 @@ func (p *parser) subckt() {
     // Next will be instantiations of other subckts. Those lines will start
     // with identifiers.
     for p.tokenis(Id) {
-        p.instance()
+        p.instance(m)
     }
 
     // Watch for the .ENDS directive followed by the name of the subckt.
@@ -183,14 +184,11 @@ func (p *parser) portspec(m *rtl.Module) {
     }
 }
 
-func (p *parser) instance() {
-    p.expect(Id) // instance name
-    for p.accept(Id, Property) {
-    }
-    p.expect(Newline)
-
-    for p.tokenis(Plus) {
-        p.plusline()
+func (p *parser) instance(m *rtl.Module) {
+    // log.Println(p.token)
+    for state := saveiname; state != nil; {
+        log.Println(state)
+        state = state(p)
     }
 }
 
@@ -202,4 +200,91 @@ func (p *parser) plusline() (ids []string) {
     }
     p.expect(Newline)
     return
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+type istatefn func(*parser) istatefn
+
+func (p *parser) errorf(format string, args ...interface{}) istatefn {
+    log.Output(2, fmt.Sprintf(format, args...))
+    log.Fatal(BadState)
+    return nil
+}
+
+func saveiname(p *parser) istatefn {
+    // log.Println("saveiname", p.token)
+    p.expect(Id)
+    switch {
+        case p.tokenis(Id)      : return add2list
+        case p.accept(Newline)  : return newline1
+        default                 : return p.errorf("saveiname: %v", p.token)
+    }
+}
+
+func add2list(p *parser) istatefn {
+    // log.Println("add2list", p.token)
+    p.expect(Id)
+    switch {
+        case p.tokenis(Id)      : return add2list
+        case p.tokenis(Property): return properties
+        case p.accept(Newline)  : return newline1
+        default                 : return p.errorf("add2list: %v", p.token)
+    }
+}
+
+func newline1(p *parser) istatefn {
+    // log.Println("newline1", p.token)
+    switch {
+        case p.accept(Plus)     : return idorprop
+        default                 : return poplist
+    }
+}
+
+func idorprop(p *parser) istatefn {
+    // log.Println("idorprop", p.token)
+    switch {
+        case p.tokenis(Id)      : return add2list
+        case p.tokenis(Property): return properties
+        default                 : return p.errorf("idorprop: %v", p.token)
+    }
+}
+
+func poplist(p *parser) istatefn {
+    // log.Println("poplist", p.token)
+    switch {
+        case p.tokenis(Id, Ends): return success
+        case p.tokenis(Property): return properties
+        default                 : return p.errorf("idorprop: %v", p.token)
+    }
+}
+
+func properties(p *parser) istatefn {
+    // log.Println("properties", p.token)
+    p.expect(Property)
+    switch {
+        case p.tokenis(Property): return properties
+        case p.accept(Newline)  : return newline2
+        default                 : return p.errorf("properties: %v", p.token)
+    }
+}
+
+func newline2(p *parser) istatefn {
+    // log.Println("newline2", p.token)
+    switch {
+        case p.accept(Plus)     : return newline3
+        default                 : return success
+    }
+}
+
+func newline3(p *parser) istatefn {
+    // log.Println("newline3", p.token)
+    switch {
+        case p.tokenis(Property): return properties
+        default                 : return p.errorf("newline3: %v", p.token)
+    }
+}
+
+func success(p *parser) istatefn {
+    return nil
 }
