@@ -11,15 +11,21 @@ type Port struct {
     Parent string       `bson:"module"`
     Name   string       `bson:"name"`
     Type   string       `bson:"type"`
+    Pos    int          `bson:"pos"`
 }
 
-func NewPort(parent, name, typ string) *Port {
+func NewPort(parent, name string, pos int) *Port {
     p := &Port {
         Parent: parent,
         Name  : name,
-        Type  : typ,
+        Type  : "",
+        Pos   : pos,
     }
     return p
+}
+
+func (p *Port) SetType(typ string) {
+    p.Type = typ
 }
 
 // Instance ////////////////////////////////////////////////////////////////////
@@ -84,19 +90,18 @@ func NewModule(name string) *Module {
     return m
 }
 
-func (m *Module) AddNewPort(name, typ string, hi, lo int64) {
-    // If hi and lo are both zero there was no range specified. So assume
-    // unindexed single bit.
-    if hi == 0 && lo == 0 {
-        port := NewPort(m.Name, name, typ)
-        m.AddPort(port)
-    } else { // Otherwise emit one per index.
-        for i := hi; i >= lo; i-- {
-            newname := fmt.Sprintf("%s[%d]", name, i)
-            port := NewPort(m.Name, newname, typ)
-            m.AddPort(port)
-        }
+// When a new port is discovered and added, the port type is not known yet. Use
+// the SetPortType method to set it when it becomes available.
+func (m *Module) AddNewPort(name string, pos int) {
+    port := NewPort(m.Name, name, pos)
+    m.AddPort(port)
+}
+
+func (m Module) SetPortType(name, typ string) {
+    if _, ok := m.Ports[name]; !ok {
+        log.Fatalln("Unknown port:", name)
     }
+    m.Ports[name].SetType(typ)
 }
 
 func (m *Module) AddNewInst(iname, itype string) {

@@ -108,17 +108,30 @@ func (p *parser) subckt() {
 
     // The first identifier is the name of the subckt.
     name := p.token.val
+    p.expect(Id)
     m := rtl.NewModule(name)
 
+    portpos := 0
+
     // Subsequent identifiers till the newline are ports.
-    for p.accept(Id, Property) {
+    for p.tokenis(Id) {
+        portname := p.token.val
+        p.expect(Id)
+        m.AddNewPort(portname, portpos)
+        portpos++
     }
+    p.accept(Property)
     p.expect(Newline)
 
     // If there are more ports, the subsequent lines with port names will start
     // with a Plus.
     for p.tokenis(Plus) {
-        p.plusline()
+        ports := p.plusline()
+
+        for _, portname := range ports {
+            m.AddNewPort(portname, portpos)
+            portpos++
+        }
     }
 
     // INPUT, OUTPUT and INOUT
@@ -168,7 +181,7 @@ func (p *parser) portspec(m *rtl.Module) {
 
     for p.tokenis(Id) {
         signal_name := p.token.val
-        m.AddNewPort(signal_name, signal_type, 0, 0)
+        m.SetPortType(signal_name, signal_type)
         p.expect(Id)
     }
 
@@ -178,7 +191,7 @@ func (p *parser) portspec(m *rtl.Module) {
         if p.tokenis(Plus) {
             ids := p.plusline()
             for _, signal_name := range ids {
-                m.AddNewPort(signal_name, signal_type, 0, 0)
+                m.SetPortType(signal_name, signal_type)
             }
         }
     }
