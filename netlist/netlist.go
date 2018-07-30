@@ -69,6 +69,7 @@ func (n *Node) ConnectLeft(r *Node) {
 
 type Netlist struct {
     Name    string
+    Ports   []string
     Nodes   map[string]*Node
     Subnets map[string]*Netlist
 }
@@ -89,6 +90,7 @@ func New(prefix, mname, iname string) *Netlist {
         p := NewPortNode(iname, pname, port.Type)
         fullname := iname + "/" + pname
         n.Nodes[fullname] = p
+        n.Ports = append(n.Ports, pname)
         // log.Println(fullname)
     }
 
@@ -126,18 +128,38 @@ func New(prefix, mname, iname string) *Netlist {
                 // This node will be indexed with a name that has the unique
                 // prefix of this parent instance -- iname.
                 nodename := iname + "/" + c.Actual
-
                 if node, ok := n.Nodes[nodename]; !ok {
-                    // Should abort if node could not be located.
-                    log.Fatal("Expecting a node", nodename)
+                    log.Fatal("Could not locate actual node:", nodename)
                 } else {
-                    log.Printf("%s%v <-> %v", prefix, node, prim)
+                    log.Printf("%sP: %v <-> %v", prefix, node, prim)
                     n.Link(node, prim)
                 }
             }
         } else {
             subnet := New(prefix+"|  ", inst.Type, iname+"/"+inst.Name)
             n.Subnets[fullname] = subnet
+
+            for _, c := range m.Conns[nname] {
+                // Locate actual node. This should be a node (port or wire) at
+                // this level by now. It will be indexed at this level with a
+                // name with the unique prefix of this parent instance -- iname
+                aname := iname + "/" + c.Actual
+                anode := n.Nodes[aname]
+                if anode == nil {
+                    log.Fatal("Could not locate actual node:", aname)
+                }
+
+                // Locate formal node. This should be a port in the subnet at
+                // the exact position as this connection's position. If node
+                // cannot be located, abort rightaway -- something went wrong.
+                fname := fullname + "/" + subnet.Ports[c.Pos]
+                if fnode, ok := subnet.Nodes[fname]; !ok {
+                    log.Fatal("Could not locate formal node", fname)
+                } else {
+                    log.Printf("%sS: %v <-> %v", prefix, anode, fnode)
+                    n.Link(anode, fnode)
+                }
+            }
         }
     }
 
