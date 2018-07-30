@@ -1,7 +1,7 @@
 package rtl
 
 import (
-    // "fmt"
+    "fmt"
     "log"
 )
 
@@ -69,6 +69,10 @@ func NewConn(parent, iname, itype, actual string, pos int) *Conn {
         Pos   : pos,
     }
     return i
+}
+
+func (c Conn) String() (str string) {
+    return fmt.Sprintf("[%s > %s > %s]", c.Parent, c.Iname, c.Actual)
 }
 
 // Module //////////////////////////////////////////////////////////////////////
@@ -152,6 +156,12 @@ func (m Module) NumConns() (count int) {
     for range m.Conns {
         count++
     }
+    return
+}
+
+func (m Module) String() (str string) {
+    str += fmt.Sprintf("%s Ports:%d Insts:%d Conns:%d", m.Name, m.NumPorts(),
+                       m.NumInsts(), m.NumConns())
     return
 }
 
