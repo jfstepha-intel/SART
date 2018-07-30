@@ -109,8 +109,8 @@ func (p *parser) subckt() {
     // The first identifier is the name of the subckt.
     name := p.token.val
     p.expect(Id)
-    m := rtl.NewModule(name)
 
+    m := rtl.NewModule(name)
     portpos := 0
 
     // Subsequent identifiers till the newline are ports.
@@ -208,6 +208,12 @@ func (p *parser) instance(m *rtl.Module) {
 
     if strings.HasPrefix(iname, "X") {
         m.AddNewInst(iname, itype)
+
+        payload := payload[1:len(payload)-1]
+
+        for pos, actual := range payload {
+            m.AddNewConn(iname, itype, actual, pos)
+        }
     }
 }
 

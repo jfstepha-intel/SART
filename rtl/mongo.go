@@ -85,7 +85,7 @@ func InitMgo(s *mgo.Session, cname string, drop bool) {
 
     // Each formal name of an instance connection in a module must be unique
     c := mgosession.DB(db).C(conncoll)
-    err = c.EnsureIndex(mgo.Index{ Key: []string{"module", "iname", "formal"}, Unique: true })
+    err = c.EnsureIndex(mgo.Index{ Key: []string{"module", "iname", "pos"}, Unique: true })
     if err != nil { log.Fatal(err) }
 
     // Index the itype as well because there will be update queries using itype

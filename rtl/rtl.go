@@ -1,7 +1,7 @@
 package rtl
 
 import (
-    "fmt"
+    // "fmt"
     "log"
 )
 
@@ -51,22 +51,22 @@ func NewInst(parent, iname, itype string) *Inst {
 // Instance connections ////////////////////////////////////////////////////////
 
 type Conn struct {
-    Parent   string     `bson:"module"`
-    Iname    string     `bson:"iname"`
-    Itype    string     `bson:"itype"`
-    Formal   string     `bson:"formal"`
-    Actual []string     `bson:"actual"`
-    IsOut    bool       `bson:"isout"`
-    IsPrim   bool       `bson:"isprim"`
+    Parent string     `bson:"module"`
+    Iname  string     `bson:"iname"`
+    Itype  string     `bson:"itype"`
+    Actual string     `bson:"actual"`
+    Pos    int        `bson:"pos"`
+    IsOut  bool       `bson:"isout"`
+    IsPrim bool       `bson:"isprim"`
 }
 
-func NewConn(parent, iname, itype, formal string, actual []string) *Conn {
+func NewConn(parent, iname, itype, actual string, pos int) *Conn {
     i := &Conn{
         Parent: parent,
         Iname : iname,
         Itype : itype,
-        Formal: formal,
         Actual: actual,
+        Pos   : pos,
     }
     return i
 }
@@ -109,23 +109,8 @@ func (m *Module) AddNewInst(iname, itype string) {
     m.AddInst(inst)
 }
 
-func (m *Module) AddNewConn(iname, itype, formal string, actual []Signal) {
-    var actuals []string
-
-    // For each actual signal, if the hi or lo are non-zero, then emit names
-    // with index suffixes.
-    for _, a := range actual {
-        if a.Hi == 0 && a.Lo == 0 {
-            actuals = append(actuals, a.Name)
-        } else {
-            for i := a.Hi; i >= a.Lo; i -- {
-                newname := fmt.Sprintf("%s[%d]", a.Name, i)
-                actuals = append(actuals, newname)
-            }
-        }
-    }
-
-    conn := NewConn(m.Name, iname, itype, formal, actuals)
+func (m *Module) AddNewConn(iname, itype, actual string, pos int) {
+    conn := NewConn(m.Name, iname, itype, actual, pos)
     m.AddConn(conn)
 }
 
