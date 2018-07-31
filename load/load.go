@@ -132,8 +132,6 @@ func main() {
     rtl.DoneMgo() // Signal no more mongo insert jobs
     rtl.WaitMgo() // Wait for all insert jobs to complete
 
-    return
-
     ////////////////////////////////////////////////////////////////////////////
     // At this point all available information in the input netlists have been
     // parsed, sliced and diced into wires, insts and conns collections in the
@@ -142,17 +140,16 @@ func main() {
     ////////////////////////////////////////////////////////////////////////////
 
     // These are the modules for which a definition is available -- defined
-    // modules
+    // modules. This typically provides the universe of available modules.
     var defnmodules []interface{}
-    err = session.DB("sart").C(cache + "_wires").Find(nil).Distinct("module", &defnmodules)
+    err = session.DB("sart").C(cache + "_ports").Find(nil).Distinct("module", &defnmodules)
     if err != nil {
         log.Fatal(err)
     }
 
-    // These are modules that have been instantiated at least once --
-    // instantiated modules
+    // These are modules that have instantiations inside them.
     var instmodules []interface{}
-    err = session.DB("sart").C(cache + "_insts").Find(nil).Distinct("type", &instmodules)
+    err = session.DB("sart").C(cache + "_insts").Find(nil).Distinct("module", &instmodules)
     if err != nil {
         log.Fatal(err)
     }
@@ -171,11 +168,8 @@ func main() {
         updatewg.Add(1)
     }
 
-    // Instantiated, but not defined implies primitives or EBBs. Either way
-    // they'll have to be treated as primitives as there is no information on
-    // them to go by.
-
-    prims := inst.Not(defn).Sort()
+    // Remove the non-empty modules from the universe to identify primitives.
+    prims := defn.Not(inst).Sort()
     total  = len(prims)
     count  = 0
 
@@ -195,8 +189,8 @@ func main() {
 
     clog, err := session.DB("sart").C(cache+"_insts").UpdateAll(
         // everything that starts with ec0f or ec0l
-        bson.M{"type": bson.RegEx{"^ec0[fl]", ""}}, // Selector interface
-        bson.M{"$set": bson.M{"isseq": true}},      // Updater  interface
+        bson.M{"type": bson.RegEx{"ec0[fl]", ""}}, // Selector interface
+        bson.M{"$set": bson.M{"isseq": true}},     // Updater  interface
     )
 
     if err != nil {
@@ -204,6 +198,8 @@ func main() {
     }
 
     log.Println("Done. Found:", clog.Matched, "; Updated:", clog.Updated)
+
+    return
 
     ////////////////////////////////////////////////////////////////////////////
 

@@ -131,7 +131,7 @@ func New(prefix, mname, iname string) *Netlist {
                 if node, ok := n.Nodes[nodename]; !ok {
                     log.Fatal("Could not locate actual node:", nodename)
                 } else {
-                    log.Printf("%sP: %v <-> %v", prefix, node, prim)
+                    // log.Printf("%sP: %v <-> %v", prefix, node, prim)
                     n.Link(node, prim)
                 }
             }
@@ -156,7 +156,7 @@ func New(prefix, mname, iname string) *Netlist {
                 if fnode, ok := subnet.Nodes[fname]; !ok {
                     log.Fatal("Could not locate formal node", fname)
                 } else {
-                    log.Printf("%sS: %v <-> %v", prefix, anode, fnode)
+                    // log.Printf("%sS: %v <-> %v", prefix, anode, fnode)
                     n.Link(anode, fnode)
                 }
             }
