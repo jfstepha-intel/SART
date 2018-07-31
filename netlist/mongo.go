@@ -14,7 +14,7 @@ var mgosession *mgo.Session
 
 const db = "sart"
 
-var collection, portcoll, instcoll, conncoll string
+var collection, portcoll, nodecoll, conncoll string
 
 ////////////////////////////////////////////////////////////////////////////////
 // Worker pool for insert jobs
@@ -60,14 +60,14 @@ func InitMgo(s *mgo.Session, cname string, drop bool) {
     collection = cname
 
     portcoll = cname + "_nports"
-    // instcoll = cname + "_insts"
+    nodecoll = cname + "_nnodes"
     // conncoll = cname + "_conns"
 
     // var err error
 
     if drop {
         dropCollection(portcoll)
-        // dropCollection(instcoll)
+        dropCollection(nodecoll)
         // dropCollection(conncoll)
     }
 
@@ -99,6 +99,10 @@ func (n *Netlist) Save() {
     for _, port := range n.Ports {
         jobs <- insertjob{portcoll, port}
     }
+
+    for _, node := range n.Nodes {
+        jobs <- insertjob{nodecoll, node}
+    }
 }
 
 func (n *Netlist) Load() {
@@ -126,5 +130,28 @@ func (n *Netlist) Load() {
         }
 
         n.Ports = append(n.Ports, &port)
+    }
+
+    // nodes collection, query and iterator
+    nc := mgosession.DB(db).C(nodecoll)
+    nq := nc.Find(bson.M{"module": n.Name})
+    ni := nq.Iter()
+
+    for ni.Next(&result) {
+        bytes, err := bson.Marshal(result)
+        if err !=nil {
+            log.Fatalf("Unable to marshal. module:%q name:%q err:%v",
+                       result["module"], result["name"], err)
+        }
+
+        var node Node
+        err = bson.Unmarshal(bytes, &node)
+        if err != nil {
+            log.Fatalf("Unable to umarshal. module:%q name:%q err:%v",
+                       result["module"], result["name"], err)
+        }
+
+        fullname := node.Parent + "/" + node.Name
+        n.Nodes[fullname] = &node
     }
 }

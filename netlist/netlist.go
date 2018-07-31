@@ -9,15 +9,13 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type Node struct {
-    Parent  string
-    Name    string
+    Parent  string      `bson:"module"`
+    Name    string      `bson:"name"`
     Type    string
     IsPort  bool
     IsPrim  bool
     IsSeqn  bool
     IsWire  bool
-    R       []*Node
-    L       []*Node
 }
 
 func NewNode(parent, name, typ string) *Node {
@@ -57,17 +55,20 @@ func (n Node) String() (str string) {
     return
 }
 
-func (n *Node) ConnectRigt(l *Node) {
-    n.R = append(n.R, l)
-}
-
-func (n *Node) ConnectLeft(r *Node) {
-    n.L = append(n.L, r)
-}
+// func (n *Node) ConnectRigt(l *Node) {
+//     n.R = append(n.R, l)
+// }
+// 
+// func (n *Node) ConnectLeft(r *Node) {
+//     n.L = append(n.L, r)
+// }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type Port rtl.Port
+type Link struct {
+    L *Node
+    R *Node
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -76,6 +77,7 @@ type Netlist struct {
     Ports   []*rtl.Port
     Nodes   map[string]*Node
     Subnets map[string]*Netlist
+    Links   []Link
 }
 
 func NewNetlist(name string) *Netlist {
@@ -143,7 +145,7 @@ func New(prefix, mname, iname string) *Netlist {
                     log.Fatal("Could not locate actual node:", nodename)
                 } else {
                     // log.Printf("%sP: %v <-> %v", prefix, node, prim)
-                    n.Link(node, prim)
+                    n.Connect(node, prim)
                 }
             }
         } else {
@@ -168,7 +170,7 @@ func New(prefix, mname, iname string) *Netlist {
                     log.Fatal("Could not locate formal node", fname)
                 } else {
                     // log.Printf("%sS: %v <-> %v", prefix, anode, fnode)
-                    n.Link(anode, fnode)
+                    n.Connect(anode, fnode)
                 }
             }
         }
@@ -179,9 +181,8 @@ func New(prefix, mname, iname string) *Netlist {
     return n
 }
 
-func (n *Netlist) Link(l *Node, r *Node) {
-    l.ConnectRigt(r)
-    r.ConnectLeft(l)
+func (n *Netlist) Connect(l *Node, r *Node) {
+    n.Links = append(n.Links, Link{l, r})
 }
 
 func (n Netlist) String() (str string) {
