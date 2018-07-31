@@ -5,6 +5,7 @@ import (
     "io"
     "log"
     "os"
+    "time"
 
     "gopkg.in/mgo.v2"
 
@@ -51,12 +52,16 @@ func main() {
 
     netlist.InitMgo(session, cache, true)
 
+    start := time.Now()
     log.Println(netlist.New("", top, top))
 
     netlist.DoneMgo()
     netlist.WaitMgo()
+    log.Println("Elapsed:", time.Since(start))
 
+    start = time.Now()
     n := netlist.NewNetlist(top)
     n.Load()
+    log.Println("Elapsed:", time.Since(start))
     log.Println(n)
 }

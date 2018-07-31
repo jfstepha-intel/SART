@@ -64,7 +64,7 @@ func InitMgo(s *mgo.Session, cname string, drop bool) {
     linkcoll = cname + "_nlinks"
     snetcoll = cname + "_nsnets"
 
-    // var err error
+    var err error
 
     if drop {
         dropCollection(portcoll)
@@ -73,7 +73,21 @@ func InitMgo(s *mgo.Session, cname string, drop bool) {
         dropCollection(snetcoll)
     }
 
-    // TODO create indexes
+    p := mgosession.DB(db).C(portcoll)
+    err = p.EnsureIndex(mgo.Index{ Key: []string{"module", "name", "pos"}, Unique: true })
+    if err != nil { log.Fatal(err) }
+
+    n := mgosession.DB(db).C(nodecoll)
+    err = n.EnsureIndex(mgo.Index{ Key: []string{"module", "name"}, Unique: true })
+    if err != nil { log.Fatal(err) }
+
+    l := mgosession.DB(db).C(linkcoll)
+    err = l.EnsureIndex(mgo.Index{ Key: []string{"module"} })
+    if err != nil { log.Fatal(err) }
+
+    b := mgosession.DB(db).C(snetcoll)
+    err = b.EnsureIndex(mgo.Index{ Key: []string{"module", "subnet"}, Unique: true })
+    if err != nil { log.Fatal(err) }
 
     // Initialize worker pool for insert jobs
     jobs = make(chan insertjob, 100)
@@ -124,7 +138,7 @@ func (n *Netlist) Load() {
     pc := mgosession.DB(db).C(portcoll)
 
     // Sort by pos to ensure port ordering.
-    pq := pc.Find(bson.M{"module": n.Name}).Sort("pos")
+    pq := pc.Find(bson.M{"module": n.Name}).Select(bson.M{"_id":0}).Sort("pos")
     pi := pq.Iter()
 
     var result bson.M
@@ -171,7 +185,7 @@ func (n *Netlist) Load() {
 
     // link collection, query and iterator
     lc := mgosession.DB(db).C(linkcoll)
-    lq := lc.Find(bson.M{"module": n.Name})
+    lq := lc.Find(bson.M{"module": n.Name}).Select(bson.M{"_id":0})
     li := lq.Iter()
 
     for li.Next(&result) {
