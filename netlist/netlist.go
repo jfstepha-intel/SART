@@ -55,19 +55,12 @@ func (n Node) String() (str string) {
     return
 }
 
-// func (n *Node) ConnectRigt(l *Node) {
-//     n.R = append(n.R, l)
-// }
-// 
-// func (n *Node) ConnectLeft(r *Node) {
-//     n.L = append(n.L, r)
-// }
-
 ////////////////////////////////////////////////////////////////////////////////
 
 type Link struct {
-    L *Node
-    R *Node
+    Parent string   `bson:"module"`
+    L      string
+    R      string
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -144,7 +137,7 @@ func New(prefix, mname, iname string) *Netlist {
                 if node, ok := n.Nodes[nodename]; !ok {
                     log.Fatal("Could not locate actual node:", nodename)
                 } else {
-                    // log.Printf("%sP: %v <-> %v", prefix, node, prim)
+                    log.Printf("%sP: %v <-> %v", prefix, node, prim)
                     n.Connect(node, prim)
                 }
             }
@@ -169,7 +162,7 @@ func New(prefix, mname, iname string) *Netlist {
                 if fnode, ok := subnet.Nodes[fname]; !ok {
                     log.Fatal("Could not locate formal node", fname)
                 } else {
-                    // log.Printf("%sS: %v <-> %v", prefix, anode, fnode)
+                    log.Printf("%sS: %v <-> %v", prefix, anode, fnode)
                     n.Connect(anode, fnode)
                 }
             }
@@ -181,14 +174,22 @@ func New(prefix, mname, iname string) *Netlist {
     return n
 }
 
+// Connect adds a link between two nodes in the netlist. Only the fullname of
+// the node is saved beacuse the node can be looked up easily with that name if
+// needed.
 func (n *Netlist) Connect(l *Node, r *Node) {
-    n.Links = append(n.Links, Link{l, r})
+    link := Link {
+        Parent: n.Name,
+        L     : l.Parent + "/" + l.Name,
+        R     : r.Parent + "/" + r.Name,
+    }
+    n.Links = append(n.Links, link)
 }
 
 func (n Netlist) String() (str string) {
-    str += fmt.Sprintf("nl:%q Nodes:%d Ports:%d Prims:%d Seqns:%d Wires:%d Subnets:%d",
+    str += fmt.Sprintf("nl:%q Nodes:%d Ports:%d Prims:%d Seqns:%d Wires:%d Subnets:%d Links:%d",
                        n.Name, n.NumNodes(), n.NumPorts(), n.NumPrims(),
-                       n.NumSeqns(), n.NumWires(), n.NumSubnets())
+                       n.NumSeqns(), n.NumWires(), n.NumSubnets(), n.NumLinks())
     return
 }
 
@@ -249,4 +250,8 @@ func (n Netlist) NumSubnets() (count int) {
         count++
     }
     return
+}
+
+func (n Netlist) NumLinks() (count int) {
+    return len(n.Links)
 }
