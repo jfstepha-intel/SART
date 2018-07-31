@@ -14,7 +14,7 @@ var mgosession *mgo.Session
 
 const db = "sart"
 
-var collection, portcoll, nodecoll, linkcoll string
+var collection, portcoll, nodecoll, linkcoll, snetcoll string
 
 ////////////////////////////////////////////////////////////////////////////////
 // Worker pool for insert jobs
@@ -62,6 +62,7 @@ func InitMgo(s *mgo.Session, cname string, drop bool) {
     portcoll = cname + "_nports"
     nodecoll = cname + "_nnodes"
     linkcoll = cname + "_nlinks"
+    snetcoll = cname + "_nsnets"
 
     // var err error
 
@@ -69,6 +70,7 @@ func InitMgo(s *mgo.Session, cname string, drop bool) {
         dropCollection(portcoll)
         dropCollection(nodecoll)
         dropCollection(linkcoll)
+        dropCollection(snetcoll)
     }
 
     // TODO create indexes
@@ -106,6 +108,14 @@ func (n *Netlist) Save() {
 
     for _, link := range n.Links {
         jobs <- insertjob{linkcoll, link}
+    }
+
+    for _, subnet := range n.Subnets {
+        doc := bson.M {
+            "module": n.Name,
+            "subnet": subnet.Name,
+        }
+        jobs <- insertjob{snetcoll, doc}
     }
 }
 
@@ -179,5 +189,17 @@ func (n *Netlist) Load() {
         }
 
         n.Links = append(n.Links, link)
+    }
+
+    // subnet collection, query and iterator
+    sc := mgosession.DB(db).C(snetcoll)
+    sq := sc.Find(bson.M{"module": n.Name}).Select(bson.M{"_id":0, "module":0})
+    si := sq.Iter()
+
+    for si.Next(&result) {
+        subnetname := result["subnet"].(string)
+        subnet := NewNetlist(subnetname)
+        n.Subnets[subnetname] = subnet
+        subnet.Load()
     }
 }
