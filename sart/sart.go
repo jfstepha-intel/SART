@@ -49,5 +49,10 @@ func main() {
     }
     log.SetOutput(logw)
 
+    netlist.InitMgo(session, cache, true)
+
     log.Println(netlist.New("", top, top))
+
+    netlist.DoneMgo()
+    netlist.WaitMgo()
 }

@@ -3,6 +3,7 @@ package rtl
 import (
     "fmt"
     "log"
+    "sort"
 )
 
 // Module Port /////////////////////////////////////////////////////////////////
@@ -138,6 +139,14 @@ func (m Module) IsSeq(iname string) bool {
     return false
 }
 
+func (m Module) OrderedPorts() (ports PortList) {
+    for _, p := range m.Ports {
+        ports = append(ports, p)
+    }
+    sort.Sort(ports)
+    return
+}
+
 func (m Module) NumPorts() (count int) {
     for range m.Ports {
         count++
@@ -170,4 +179,22 @@ func (m Module) String() (str string) {
 type Signal struct {
     Name string
     Hi, Lo int64
+}
+
+// PortList ////////////////////////////////////////////////////////////////////
+
+type PortList []*Port
+
+// Implements sort.Interface
+
+func (p PortList) Len() int {
+    return len(p)
+}
+
+func (p PortList) Less(i, j int) bool {
+    return p[i].Pos < p[j].Pos
+}
+
+func (p PortList) Swap(i, j int) {
+    p[i], p[j] = p[j], p[i]
 }

@@ -5,7 +5,7 @@ import (
     "log"
     "sart/rtl"
 )        
-         
+
 ////////////////////////////////////////////////////////////////////////////////
 
 type Node struct {
@@ -67,11 +67,24 @@ func (n *Node) ConnectLeft(r *Node) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+type Port rtl.Port
+
+////////////////////////////////////////////////////////////////////////////////
+
 type Netlist struct {
     Name    string
-    Ports   []string
+    Ports   []*rtl.Port
     Nodes   map[string]*Node
     Subnets map[string]*Netlist
+}
+
+func NewNetlist(name string) *Netlist {
+    n := &Netlist {
+        Name    : name,
+        Nodes   : make(map[string]*Node),
+        Subnets : make(map[string]*Netlist),
+    }
+    return n
 }
 
 func New(prefix, mname, iname string) *Netlist {
@@ -79,24 +92,20 @@ func New(prefix, mname, iname string) *Netlist {
 
     log.Printf("%s%s [%v]", prefix, iname, m)
 
-    n := &Netlist {
-        Name    : iname,
-        Nodes   : make(map[string]*Node),
-        Subnets : make(map[string]*Netlist),
-    }
+    n := NewNetlist(iname)
 
     // All ports trivially become nodes
-    for pname, port := range m.Ports {
+    for pos, port := range m.OrderedPorts() {
+        pname := port.Name
+        nport := rtl.NewPort(iname, pname, pos)
         p := NewPortNode(iname, pname, port.Type)
         fullname := iname + "/" + pname
         n.Nodes[fullname] = p
-        n.Ports = append(n.Ports, pname)
-        // log.Println(fullname)
+        n.Ports = append(n.Ports, nport)
     }
 
     // Go through all connections -- actual names of all instance connections.
-    // If a name has not already been encountered as a port, add that as a
-    // wire.
+    // If a name has not already been encountered as a port, add it as a wire.
     for _, conns := range m.Conns {
         for _, conn := range conns {
             signal := conn.Actual
@@ -152,7 +161,7 @@ func New(prefix, mname, iname string) *Netlist {
                 // Locate formal node. This should be a port in the subnet at
                 // the exact position as this connection's position. If node
                 // cannot be located, abort rightaway -- something went wrong.
-                fname := fullname + "/" + subnet.Ports[c.Pos]
+                fname := fullname + "/" + subnet.Ports[c.Pos].Name
                 if fnode, ok := subnet.Nodes[fname]; !ok {
                     log.Fatal("Could not locate formal node", fname)
                 } else {
@@ -162,6 +171,8 @@ func New(prefix, mname, iname string) *Netlist {
             }
         }
     }
+
+    n.Save()
 
     return n
 }
