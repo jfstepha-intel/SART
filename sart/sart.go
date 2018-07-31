@@ -55,4 +55,8 @@ func main() {
 
     netlist.DoneMgo()
     netlist.WaitMgo()
+
+    n := netlist.NewNetlist(top)
+    n.Load()
+    log.Println(n)
 }

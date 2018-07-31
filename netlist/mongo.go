@@ -5,7 +5,9 @@ import (
     "sync"
 
     "gopkg.in/mgo.v2"
-    // "gopkg.in/mgo.v2/bson"
+    "gopkg.in/mgo.v2/bson"
+
+    "sart/rtl"
 )
 
 var mgosession *mgo.Session
@@ -100,4 +102,29 @@ func (n *Netlist) Save() {
 }
 
 func (n *Netlist) Load() {
+    // ports collection, query and iterator
+    pc := mgosession.DB(db).C(portcoll)
+
+    // Sort by pos to ensure port ordering.
+    pq := pc.Find(bson.M{"module": n.Name}).Sort("pos")
+    pi := pq.Iter()
+
+    var result bson.M
+
+    for pi.Next(&result) {
+        bytes, err := bson.Marshal(result)
+        if err !=nil {
+            log.Fatalf("Unable to marshal. module:%q name:%q err:%v",
+                       result["module"], result["name"], err)
+        }
+
+        var port rtl.Port
+        err = bson.Unmarshal(bytes, &port)
+        if err != nil {
+            log.Fatalf("Unable to umarshal. module:%q name:%q err:%v",
+                       result["module"], result["name"], err)
+        }
+
+        n.Ports = append(n.Ports, &port)
+    }
 }

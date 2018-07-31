@@ -97,10 +97,12 @@ func New(prefix, mname, iname string) *Netlist {
     // All ports trivially become nodes
     for pos, port := range m.OrderedPorts() {
         pname := port.Name
-        nport := rtl.NewPort(iname, pname, pos)
+
         p := NewPortNode(iname, pname, port.Type)
         fullname := iname + "/" + pname
         n.Nodes[fullname] = p
+
+        nport := rtl.NewPort(iname, pname, pos)
         n.Ports = append(n.Ports, nport)
     }
 
@@ -211,12 +213,7 @@ func (n Netlist) NumNodes() (count int) {
 }
 
 func (n Netlist) NumPorts() (count int) {
-    for _, node := range n.Nodes {
-        if node.IsPort {
-            count++
-        }
-    }
-    return
+    return len(n.Ports)
 }
 
 func (n Netlist) NumPrims() (count int) {
