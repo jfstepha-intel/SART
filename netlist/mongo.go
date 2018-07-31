@@ -86,7 +86,7 @@ func InitMgo(s *mgo.Session, cname string, drop bool) {
     if err != nil { log.Fatal(err) }
 
     b := mgosession.DB(db).C(snetcoll)
-    err = b.EnsureIndex(mgo.Index{ Key: []string{"module", "subnet"}, Unique: true })
+    err = b.EnsureIndex(mgo.Index{ Key: []string{"module", "name"}, Unique: true })
     if err != nil { log.Fatal(err) }
 
     // Initialize worker pool for insert jobs
@@ -125,11 +125,7 @@ func (n *Netlist) Save() {
     }
 
     for _, subnet := range n.Subnets {
-        doc := bson.M {
-            "module": n.Name,
-            "subnet": subnet.Name,
-        }
-        jobs <- insertjob{snetcoll, doc}
+        jobs <- insertjob{snetcoll, subnet}
     }
 }
 
@@ -211,9 +207,19 @@ func (n *Netlist) Load() {
     si := sq.Iter()
 
     for si.Next(&result) {
-        subnetname := result["subnet"].(string)
-        subnet := NewNetlist(subnetname)
-        n.Subnets[subnetname] = subnet
-        subnet.Load()
+        bytes, err := bson.Marshal(result)
+        if err !=nil {
+            log.Fatalf("Unable to marshal. module:%q name:%q err:%v",
+                       result["module"], result["name"], err)
+        }
+
+        var subnet Subnet
+        err = bson.Unmarshal(bytes, &subnet)
+        if err != nil {
+            log.Fatalf("Unable to umarshal. module:%q name:%q err:%v",
+                       result["module"], result["name"], err)
+        }
+
+        n.Subnets = append(n.Subnets, subnet)
     }
 }

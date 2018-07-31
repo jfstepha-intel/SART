@@ -57,6 +57,11 @@ func (n Node) String() (str string) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+type Subnet struct {
+    Parent string   `bson:"module"`
+    Name   string   `bson:"name"`
+}
+
 type Link struct {
     Parent string   `bson:"module"`
     L      string
@@ -69,7 +74,7 @@ type Netlist struct {
     Name    string
     Ports   []*rtl.Port
     Nodes   map[string]*Node
-    Subnets map[string]*Netlist
+    Subnets []Subnet
     Links   []Link
 }
 
@@ -77,7 +82,6 @@ func NewNetlist(name string) *Netlist {
     n := &Netlist {
         Name    : name,
         Nodes   : make(map[string]*Node),
-        Subnets : make(map[string]*Netlist),
     }
     return n
 }
@@ -143,7 +147,7 @@ func New(prefix, mname, iname string) *Netlist {
             }
         } else {
             subnet := New(prefix+"|  ", inst.Type, iname+"/"+inst.Name)
-            n.Subnets[fullname] = subnet
+            n.Subnets = append(n.Subnets, Subnet{n.Name, subnet.Name})
 
             for _, c := range m.Conns[nname] {
                 // Locate actual node. This should be a node (port or wire) at
