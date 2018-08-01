@@ -271,8 +271,8 @@ func main() {
     var result bson.M
 
     count = 0
-    incount := 0
-    iocount := 0
+    outcount := 0
+    inocount  := 0
     for iter.Next(&result) {
         module := result["module"].(string)
         pos    := result["pos"].(int)
@@ -285,8 +285,8 @@ func main() {
         }
 
         switch ctype {
-            case "INPUT": incount++
-            case "INOUT": iocount++
+            case "OUTPUT": outcount++
+            case "INOUT" : inocount++
         }
 
         count++
@@ -295,5 +295,5 @@ func main() {
 
     close(connTypeUpdateJobs)
     connTypeUpdateWg.Wait()
-    log.Printf("Done. Updated %d inputs and %d inputs", incount, iocount)
+    log.Printf("Done. Updated %d outputs and %d inputs", outcount, inocount)
 }
