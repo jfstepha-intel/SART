@@ -78,7 +78,7 @@ type Netlist struct {
     Inouts  map[string]*Node    // Holds all nodes corresponding to inout ports
     Outputs map[string]*Node    // Holds all nodes corresponding to output ports
     Subnets map[string]*Netlist
-    Links   []Link
+    Links   map[string][]*Node
 }
 
 func NewNetlist(name string) *Netlist {
@@ -89,6 +89,7 @@ func NewNetlist(name string) *Netlist {
         Inouts  : make(map[string]*Node),
         Outputs : make(map[string]*Node),
         Subnets : make(map[string]*Netlist),
+        Links   : make(map[string][]*Node),
     }
     return n
 }
@@ -159,7 +160,13 @@ func New(prefix, mname, iname string) *Netlist {
                     log.Fatal("Could not locate actual node:", nodename)
                 } else {
                     // log.Printf("%sP: %v <-> %v", prefix, node, prim)
-                    n.Connect(node, prim)
+                    switch c.Type {
+                        case "INPUT" : n.Connect(node, prim)
+                        case "OUTPUT": n.Connect(prim, node)
+                        case "INOUT" : n.Connect(node, prim)
+                                       n.Connect(prim, node)
+                        default : log.Fatal("Unexpected conn type:", c.Type)
+                    }
                 }
             }
         } else {
@@ -184,7 +191,13 @@ func New(prefix, mname, iname string) *Netlist {
                     log.Fatal("Could not locate formal node", fname)
                 } else {
                     // log.Printf("%sS: %v <-> %v", prefix, anode, fnode)
-                    n.Connect(anode, fnode)
+                    switch c.Type {
+                        case "INPUT" : n.Connect(anode, fnode)
+                        case "OUTPUT": n.Connect(fnode, anode)
+                        case "INOUT" : n.Connect(anode, fnode)
+                                       n.Connect(fnode, anode)
+                        default : log.Fatal("Unexpected conn type:", c.Type)
+                    }
                 }
             }
         }
@@ -199,12 +212,8 @@ func New(prefix, mname, iname string) *Netlist {
 // the node is saved beacuse the node can be looked up easily with that name if
 // needed.
 func (n *Netlist) Connect(l *Node, r *Node) {
-    link := Link {
-        Parent: n.Name,
-        L     : l.Parent + "/" + l.Name,
-        R     : r.Parent + "/" + r.Name,
-    }
-    n.Links = append(n.Links, link)
+    lfullname := l.Parent + "/" + l.Name
+    n.Links[lfullname] = append(n.Linls[lfullname], r)
 }
 
 func (n Netlist) String() (str string) {
