@@ -57,7 +57,7 @@ type Conn struct {
     Itype  string     `bson:"itype"`
     Actual string     `bson:"actual"`
     Pos    int        `bson:"pos"`
-    IsOut  bool       `bson:"isout"`
+    Type   string     `bson:"type"`
     IsPrim bool       `bson:"isprim"`
 }
 
@@ -68,6 +68,7 @@ func NewConn(parent, iname, itype, actual string, pos int) *Conn {
         Itype : itype,
         Actual: actual,
         Pos   : pos,
+        Type  : "INPUT",   // Allocate the largest string
     }
     return i
 }

@@ -59,17 +59,40 @@ func updateWorker(wg *sync.WaitGroup, jobs <-chan string) {
     wg.Done()
 }
 
+type connTypeUpdateJob struct {
+    Module string
+    Pos    int
+    Type   string
+}
+
+func connTypeUpdateWorker(wg *sync.WaitGroup, jobs <-chan connTypeUpdateJob) {
+    sess := session.Copy()
+    conn := sess.DB("sart").C(cache+"_conns")
+    for job := range jobs {
+        _, err := conn.UpdateAll(
+            bson.M{"itype": job.Module, "pos": job.Pos}, // Selector
+            bson.M{"$set": bson.M{"type": job.Type}},
+        )
+        if err != nil {
+            log.Fatal(err)
+        }
+    }
+    wg.Done()
+}
+
 var session *mgo.Session
 var cache string
 
 func main() {
     var path, server string 
     var threads int
+    var noparse bool
 
     flag.StringVar(&path,   "path",    "",          "path to folder with netlist files")
     flag.StringVar(&server, "server",  "localhost", "name of mongodb server")
     flag.StringVar(&cache,  "cache",   "",          "name of cache to save module info")
     flag.IntVar(&threads,   "threads", 2,           "number of parallel threads to spawn")
+    flag.BoolVar(&noparse,  "noparse", false,       "include to skip parse step")
 
     flag.Parse()
 
@@ -88,49 +111,53 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
-    rtl.InitMgo(session, cache, true)
+    rtl.InitMgo(session, cache, !noparse)
 
     log.SetOutput(os.Stdout)
 
-    // Setup inputs, waitgroup and worker threads //////////////////////////////
+    var count, total int
 
-    files, err := ioutil.ReadDir(path)
-    if err != nil {
-        log.Fatal(err)
-    }
+    if !noparse {
+        // Setup inputs, waitgroup and worker threads //////////////////////////////
 
-    var parsewg sync.WaitGroup
-    parsejobs  := make(chan string, 100)
-
-    for i := 0; i < threads; i++ {
-        go parseWorker(&parsewg, parsejobs)
-        parsewg.Add(1)
-    }
-
-    // Loop over files and add to parsers pool /////////////////////////////////
-
-    count := 0
-    total := len(files)
-    for _, file := range files {
-        filename := file.Name()
-        count++
-        
-        if !strings.HasSuffix(filename, ".sp") {
-            continue
+        files, err := ioutil.ReadDir(path)
+        if err != nil {
+            log.Fatal(err)
         }
 
-        fpath := path + "/" + filename
-        parsejobs <- fpath
+        var parsewg sync.WaitGroup
+        parsejobs  := make(chan string, 100)
 
-        log.Printf("load: (%d/%d) %s", count, total, filename)
+        for i := 0; i < threads; i++ {
+            go parseWorker(&parsewg, parsejobs)
+            parsewg.Add(1)
+        }
+
+        // Loop over files and add to parsers pool /////////////////////////////////
+
+        count = 0
+        total = len(files)
+        for _, file := range files {
+            filename := file.Name()
+            count++
+            
+            if !strings.HasSuffix(filename, ".sp") {
+                continue
+            }
+
+            fpath := path + "/" + filename
+            parsejobs <- fpath
+
+            log.Printf("load: (%d/%d) %s", count, total, filename)
+        }
+
+        // No more parse jobs
+        close(parsejobs)
+        parsewg.Wait()
+
+        rtl.DoneMgo() // Signal no more mongo insert jobs
+        rtl.WaitMgo() // Wait for all insert jobs to complete
     }
-
-    // No more parse jobs
-    close(parsejobs)
-    parsewg.Wait()
-
-    rtl.DoneMgo() // Signal no more mongo insert jobs
-    rtl.WaitMgo() // Wait for all insert jobs to complete
 
     ////////////////////////////////////////////////////////////////////////////
     // At this point all available information in the input netlists have been
@@ -199,33 +226,74 @@ func main() {
 
     log.Println("Done. Found:", clog.Matched, "; Updated:", clog.Updated)
 
-    return
+    ////////////////////////////////////////////////////////////////////////////
+    // Next, the instance connections' type field need to be updated to reflect
+    // the direction -- input, output or inout. This information was captured
+    // when the module (subckt) definition of each instance was discovered. At
+    // this point it is already saved in mongo. It has to be done in this
+    // manner -- a two-pass sort of way, beacuse all module (subckt)
+    // definitions are not held in memory at the discovery phase.
+
+    // Setup worker pool for conn type update queries //////////////////////////
+
+    var connTypeUpdateWg sync.WaitGroup
+    connTypeUpdateJobs := make(chan connTypeUpdateJob, 100)
+
+    for i := 0; i < threads; i++ {
+        go connTypeUpdateWorker(&connTypeUpdateWg, connTypeUpdateJobs)
+        connTypeUpdateWg.Add(1)
+    }
 
     ////////////////////////////////////////////////////////////////////////////
 
-    log.Println("Marking outputs..")
+    log.Println("Marking conn outputs and inouts..")
 
-    outs := []string{
-        "carry",
-        "clkout",
-        "o",
-        "o1",
-        "out0",
-        "so",
-        "sum",
+    findq := session.DB("sart").C(cache+"_ports").Find(
+        bson.M{
+            "$or": []bson.M{
+                bson.M{"type": "OUTPUT"},
+                bson.M{"type": "INOUT"},
+            },
+        },
+    )
+
+    total, err = findq.Count()
+    if err != nil {
+        log.Fatal(err)
     }
 
-    for _, out := range outs {
-        clog, err := session.DB("sart").C(cache+"_conns").UpdateAll(
-            bson.M{"formal": out, "isprim": true},
-            bson.M{"$set": bson.M{"isout": true}},
-        )
+    // As there are approximately 2x inputs relative to outputs and inouts
+    // combiner, by default an rtl.Conn.Type is initialized with 'INPUT'. Find
+    // all ports that are OUTPUTs and INOUTs (and their positions), iterate
+    // over them and update all *connections* that match that condition.
+    iter := findq.Select(bson.M{"_id":0}).Iter()
 
-        if err != nil {
-            log.Fatal(err)
+    var result bson.M
+
+    count = 0
+    incount := 0
+    iocount := 0
+    for iter.Next(&result) {
+        module := result["module"].(string)
+        pos    := result["pos"].(int)
+        ctype  := result["type"].(string)
+
+        connTypeUpdateJobs <- connTypeUpdateJob {
+            Module: module,
+            Pos   : pos,
+            Type  : ctype,
         }
-        log.Printf("out: %s Found: %d, Updated: %d", out, clog.Matched, clog.Updated)
+
+        switch ctype {
+            case "INPUT": incount++
+            case "INOUT": iocount++
+        }
+
+        count++
+        log.Printf("conn: (%d/%d) %d\t%s %s", count, total, pos, ctype, module)
     }
 
-    log.Println("Done.")
+    close(connTypeUpdateJobs)
+    connTypeUpdateWg.Wait()
+    log.Printf("Done. Updated %d inputs and %d inputs", incount, iocount)
 }

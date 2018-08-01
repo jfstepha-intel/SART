@@ -108,6 +108,7 @@ func New(prefix, mname, iname string) *Netlist {
         fullname := iname + "/" + pname
         n.Nodes[fullname] = p
 
+        // port.Type should be one of three. Update the corresponding map.
         switch p.Type {
             case "INPUT" : n.Inputs[fullname]  = p
             case "INOUT" : n.Inouts[fullname]  = p
@@ -125,6 +126,8 @@ func New(prefix, mname, iname string) *Netlist {
         for _, conn := range conns {
             signal := conn.Actual
             fullname := iname + "/" + signal
+            // Add a wire node if a port with same name doesn't already exist.
+            // Don't add it a second time.
             if !n.HasPort(fullname) && !n.HasWire(fullname) {
                 w := NewWireNode(iname, signal)
                 n.Nodes[fullname] = w
