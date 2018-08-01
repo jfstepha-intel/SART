@@ -120,8 +120,19 @@ func (n *Netlist) Save() {
         jobs <- insertjob{nodecoll, node}
     }
 
-    for _, link := range n.Links {
-        jobs <- insertjob{linkcoll, link}
+    // Links is a map of right-nodes indexed using the fullname of the
+    // left-node. It is sufficient to push just the fullname of the rnode into
+    // mongo as during retrieval, the right-node-fullname can be used to locate
+    // the node which should already have been loaded.
+    for lfullname, rnodes := range n.Links {
+        for _, rnode := range rnodes {
+            doc := bson.M{
+                "name": n.Name,
+                "lfullname": lfullname,
+                "rfullname": rnode.Fullname(),
+            }
+            jobs <- insertjob{linkcoll, doc}
+        }
     }
 
     for _, subnet := range n.Subnets {
@@ -189,20 +200,13 @@ func (n *Netlist) Load() {
     li := lq.Iter()
 
     for li.Next(&result) {
-        bytes, err := bson.Marshal(result)
-        if err !=nil {
-            log.Fatalf("Unable to marshal. module:%q name:%q err:%v",
-                       result["module"], result["name"], err)
+        lfullname := result["lfullname"].(string)
+        rfullname := result["rfullname"].(string)
+        if rnode, ok := n.Nodes[lfullname]; ok {
+            n.Links[lfullname] = append(n.Links[lfullname], rnode)
+        }  else {
+            log.Fatalln("Unable to local rnode", rfullname)
         }
-
-        var link Link
-        err = bson.Unmarshal(bytes, &link)
-        if err != nil {
-            log.Fatalf("Unable to umarshal. module:%q name:%q err:%v",
-                       result["module"], result["name"], err)
-        }
-
-        n.Links = append(n.Links, link)
     }
 
     // subnet collection, query and iterator

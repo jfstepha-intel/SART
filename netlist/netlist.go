@@ -55,6 +55,10 @@ func (n Node) String() (str string) {
     return
 }
 
+func (n Node) Fullname() string {
+    return n.Parent + "/" + n.Name
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 type Subnet struct {
@@ -106,7 +110,7 @@ func New(prefix, mname, iname string) *Netlist {
         pname := port.Name
 
         p := NewPortNode(iname, pname, port.Type)
-        fullname := iname + "/" + pname
+        fullname := p.Fullname()
         n.Nodes[fullname] = p
 
         // port.Type should be one of three. Update the corresponding map.
@@ -212,8 +216,7 @@ func New(prefix, mname, iname string) *Netlist {
 // the node is saved beacuse the node can be looked up easily with that name if
 // needed.
 func (n *Netlist) Connect(l *Node, r *Node) {
-    lfullname := l.Parent + "/" + l.Name
-    n.Links[lfullname] = append(n.Linls[lfullname], r)
+    n.Links[l.Fullname()] = append(n.Links[l.Fullname()], r)
 }
 
 func (n Netlist) String() (str string) {
