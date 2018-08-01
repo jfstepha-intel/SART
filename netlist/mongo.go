@@ -190,8 +190,7 @@ func (n *Netlist) Load() {
                        result["module"], result["name"], err)
         }
 
-        fullname := node.Parent + "/" + node.Name
-        n.Nodes[fullname] = &node
+        n.AddNode(&node)
     }
 
     // link collection, query and iterator

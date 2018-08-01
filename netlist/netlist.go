@@ -97,16 +97,7 @@ func New(prefix, mname, iname string) *Netlist {
         pname := port.Name
 
         p := NewPortNode(iname, pname, port.Type)
-        fullname := p.Fullname()
-        n.Nodes[fullname] = p
-
-        // port.Type should be one of three. Update the corresponding map.
-        switch p.Type {
-            case "INPUT" : n.Inputs[fullname]  = p
-            case "INOUT" : n.Inouts[fullname]  = p
-            case "OUTPUT": n.Outputs[fullname] = p
-            default      : log.Fatal("Unexpected port type:", p.Type)
-        }
+        n.AddNode(p)
 
         nport := rtl.NewPort(iname, pname, pos)
         n.Ports = append(n.Ports, nport)
@@ -204,6 +195,22 @@ func New(prefix, mname, iname string) *Netlist {
 // needed.
 func (n *Netlist) Connect(l *Node, r *Node) {
     n.Links[l.Fullname()] = append(n.Links[l.Fullname()], r)
+}
+
+func (n *Netlist) AddNode(node *Node) {
+    fullname := node.Fullname()
+    if _, ok := n.Nodes[fullname]; ok {
+        log.Fatal("Node already exists", fullname)
+    }
+
+    n.Nodes[fullname] = node
+
+    // Additionally update port maps
+    switch node.Type {
+        case "INPUT" : n.Inputs[fullname]  = node
+        case "INOUT" : n.Inouts[fullname]  = node
+        case "OUTPUT": n.Outputs[fullname] = node
+    }
 }
 
 func (n Netlist) String() (str string) {
