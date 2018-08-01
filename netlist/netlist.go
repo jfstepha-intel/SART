@@ -73,8 +73,11 @@ type Link struct {
 type Netlist struct {
     Name    string
     Ports   []*rtl.Port
-    Nodes   map[string]*Node
-    Subnets []Subnet
+    Nodes   map[string]*Node    // Holds all nodes
+    Inputs  map[string]*Node    // Holds all nodes corresponding to input ports
+    Inouts  map[string]*Node    // Holds all nodes corresponding to inout ports
+    Outputs map[string]*Node    // Holds all nodes corresponding to output ports
+    Subnets map[string]*Netlist
     Links   []Link
 }
 
@@ -82,6 +85,10 @@ func NewNetlist(name string) *Netlist {
     n := &Netlist {
         Name    : name,
         Nodes   : make(map[string]*Node),
+        Inputs  : make(map[string]*Node),
+        Inouts  : make(map[string]*Node),
+        Outputs : make(map[string]*Node),
+        Subnets : make(map[string]*Netlist),
     }
     return n
 }
@@ -100,6 +107,13 @@ func New(prefix, mname, iname string) *Netlist {
         p := NewPortNode(iname, pname, port.Type)
         fullname := iname + "/" + pname
         n.Nodes[fullname] = p
+
+        switch p.Type {
+            case "INPUT" : n.Inputs[fullname]  = p
+            case "INOUT" : n.Inouts[fullname]  = p
+            case "OUTPUT": n.Outputs[fullname] = p
+            default      : log.Fatal("Unexpected port type:", p.Type)
+        }
 
         nport := rtl.NewPort(iname, pname, pos)
         n.Ports = append(n.Ports, nport)
@@ -147,7 +161,7 @@ func New(prefix, mname, iname string) *Netlist {
             }
         } else {
             subnet := New(prefix+"|  ", inst.Type, iname+"/"+inst.Name)
-            n.Subnets = append(n.Subnets, Subnet{n.Name, subnet.Name})
+            n.Subnets[fullname] = subnet
 
             for _, c := range m.Conns[nname] {
                 // Locate actual node. This should be a node (port or wire) at

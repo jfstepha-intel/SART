@@ -125,7 +125,11 @@ func (n *Netlist) Save() {
     }
 
     for _, subnet := range n.Subnets {
-        jobs <- insertjob{snetcoll, subnet}
+        doc := bson.M{
+            "module": n.Name,
+            "name"  : subnet.Name,
+        }
+        jobs <- insertjob{snetcoll, doc}
     }
 }
 
@@ -207,19 +211,9 @@ func (n *Netlist) Load() {
     si := sq.Iter()
 
     for si.Next(&result) {
-        bytes, err := bson.Marshal(result)
-        if err !=nil {
-            log.Fatalf("Unable to marshal. module:%q name:%q err:%v",
-                       result["module"], result["name"], err)
-        }
-
-        var subnet Subnet
-        err = bson.Unmarshal(bytes, &subnet)
-        if err != nil {
-            log.Fatalf("Unable to umarshal. module:%q name:%q err:%v",
-                       result["module"], result["name"], err)
-        }
-
-        n.Subnets = append(n.Subnets, subnet)
+        fullname := n.Name + "/" + result["name"].(string)
+        subnet := NewNetlist(fullname)
+        n.Subnets[fullname] = subnet
+        subnet.Load()
     }
 }
