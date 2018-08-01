@@ -61,19 +61,6 @@ func (n Node) Fullname() string {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type Subnet struct {
-    Parent string   `bson:"module"`
-    Name   string   `bson:"name"`
-}
-
-type Link struct {
-    Parent string   `bson:"module"`
-    L      string
-    R      string
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 type Netlist struct {
     Name    string
     Ports   []*rtl.Port
@@ -81,8 +68,8 @@ type Netlist struct {
     Inputs  map[string]*Node    // Holds all nodes corresponding to input ports
     Inouts  map[string]*Node    // Holds all nodes corresponding to inout ports
     Outputs map[string]*Node    // Holds all nodes corresponding to output ports
+    Links   map[string][]*Node  // Map from left-node's fullname to right-nodes
     Subnets map[string]*Netlist
-    Links   map[string][]*Node
 }
 
 func NewNetlist(name string) *Netlist {
