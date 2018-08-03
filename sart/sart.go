@@ -64,4 +64,7 @@ func main() {
     n.Load()
     log.Println("Elapsed:", time.Since(start))
     log.Println(n)
+
+    log.Println("Starting walks..")
+    n.WalkDown()
 }

@@ -3,8 +3,11 @@ package netlist
 import ( 
     "fmt"
     "log"
+    "strings"
     "sart/rtl"
 )        
+
+var DuplicateNode error = fmt.Errorf("-!- Duplicate Node Error")
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -51,7 +54,7 @@ func (n Node) String() (str string) {
         case n.IsPort: str += "PORT "
         case n.IsWire: str += "WIRE "
     }
-    str += n.Name + "]"
+    str += n.Fullname() + "]"
     return
 }
 
@@ -107,14 +110,8 @@ func New(prefix, mname, iname string) *Netlist {
     // If a name has not already been encountered as a port, add it as a wire.
     for _, conns := range m.Conns {
         for _, conn := range conns {
-            signal := conn.Actual
-            fullname := iname + "/" + signal
-            // Add a wire node if a port with same name doesn't already exist.
-            // Don't add it a second time.
-            if !n.HasPort(fullname) && !n.HasWire(fullname) {
-                w := NewWireNode(iname, signal)
-                n.Nodes[fullname] = w
-            }
+            w := NewWireNode(iname, conn.Actual)
+            n.AddNode(w)
         }
     }
 
@@ -126,7 +123,7 @@ func New(prefix, mname, iname string) *Netlist {
         fullname := iname + "/" + nname
         if inst.IsPrim {
             prim := NewPrimNode(iname, nname, inst.Type)
-            n.Nodes[fullname] = prim
+            n.AddNode(prim)
 
             // Update whether or not this node is a sequential
             prim.IsSeqn = inst.IsSeq
@@ -199,8 +196,14 @@ func (n *Netlist) Connect(l *Node, r *Node) {
 
 func (n *Netlist) AddNode(node *Node) {
     fullname := node.Fullname()
-    if _, ok := n.Nodes[fullname]; ok {
-        log.Fatal("Node already exists", fullname)
+    if _, found := n.Nodes[fullname]; found {
+        if node.IsWire {
+            // Wires with same name will be discovered multiple times but we
+            // should not add duplicate nodes for each encouter. Simply return.
+            return
+        }
+        log.Output(2, fmt.Sprintf("Node %s exists: %q", node, fullname))
+        log.Fatal(DuplicateNode)
     }
 
     n.Nodes[fullname] = node
@@ -211,6 +214,35 @@ func (n *Netlist) AddNode(node *Node) {
         case "INOUT" : n.Inouts[fullname]  = node
         case "OUTPUT": n.Outputs[fullname] = node
     }
+}
+
+func (n *Netlist) LocateNode(name string) *Node {
+    var node *Node
+    var subnet *Netlist
+    var found bool
+
+    // If a node with this name exists at this level, it can be readily found
+    // in Nodes. Return it.
+    if node, found = n.Nodes[name]; found {
+        return node
+    }
+
+    // If not found at this level, it could be a port in a subnet. Assuming the
+    // name is a full name, derive the subnet name and port name, then search.
+    parts := strings.Split(name, "/")
+    subnetname := strings.Join(parts[0:len(parts)-1], "/")
+
+    // If there is no subnet with this name, no node was found
+    if subnet, found = n.Subnets[subnetname]; !found {
+        return nil
+    }
+
+    // To be found, the name should match a node in this subnet
+    if node, found = subnet.Nodes[name]; found {
+        return node
+    }
+
+    return nil
 }
 
 func (n Netlist) String() (str string) {
@@ -280,5 +312,8 @@ func (n Netlist) NumSubnets() (count int) {
 }
 
 func (n Netlist) NumLinks() (count int) {
-    return len(n.Links)
+    for range n.Links {
+        count++
+    }
+    return
 }

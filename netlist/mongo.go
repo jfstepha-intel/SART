@@ -127,7 +127,7 @@ func (n *Netlist) Save() {
     for lfullname, rnodes := range n.Links {
         for _, rnode := range rnodes {
             doc := bson.M{
-                "name": n.Name,
+                "module": n.Name,
                 "lfullname": lfullname,
                 "rfullname": rnode.Fullname(),
             }
@@ -193,6 +193,18 @@ func (n *Netlist) Load() {
         n.AddNode(&node)
     }
 
+    // subnet collection, query and iterator
+    sc := mgosession.DB(db).C(snetcoll)
+    sq := sc.Find(bson.M{"module": n.Name}).Select(bson.M{"_id":0, "module":0})
+    si := sq.Iter()
+
+    for si.Next(&result) {
+        fullname := result["name"].(string)
+        subnet := NewNetlist(fullname)
+        n.Subnets[fullname] = subnet
+        subnet.Load()
+    }
+
     // link collection, query and iterator
     lc := mgosession.DB(db).C(linkcoll)
     lq := lc.Find(bson.M{"module": n.Name}).Select(bson.M{"_id":0})
@@ -201,22 +213,17 @@ func (n *Netlist) Load() {
     for li.Next(&result) {
         lfullname := result["lfullname"].(string)
         rfullname := result["rfullname"].(string)
-        if rnode, ok := n.Nodes[lfullname]; ok {
-            n.Links[lfullname] = append(n.Links[lfullname], rnode)
-        }  else {
-            log.Fatalln("Unable to local rnode", rfullname)
+        lnode := n.LocateNode(lfullname)
+        rnode := n.LocateNode(rfullname)
+
+        if lnode == nil {
+            log.Fatalf("Could not locate lnode %q in netlist %q", lfullname, n.Name)
         }
-    }
 
-    // subnet collection, query and iterator
-    sc := mgosession.DB(db).C(snetcoll)
-    sq := sc.Find(bson.M{"module": n.Name}).Select(bson.M{"_id":0, "module":0})
-    si := sq.Iter()
+        if rnode == nil {
+            log.Fatalf("Could not locate rnode %q in netlist %q", rfullname, n.Name)
+        }
 
-    for si.Next(&result) {
-        fullname := n.Name + "/" + result["name"].(string)
-        subnet := NewNetlist(fullname)
-        n.Subnets[fullname] = subnet
-        subnet.Load()
+        n.Connect(lnode, rnode)
     }
 }
