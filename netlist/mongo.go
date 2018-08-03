@@ -6,15 +6,13 @@ import (
 
     "gopkg.in/mgo.v2"
     "gopkg.in/mgo.v2/bson"
-
-    "sart/rtl"
 )
 
 var mgosession *mgo.Session
 
 const db = "sart"
 
-var collection, portcoll, nodecoll, linkcoll, snetcoll string
+var nodecoll, linkcoll, snetcoll string
 
 ////////////////////////////////////////////////////////////////////////////////
 // Worker pool for insert jobs
@@ -57,9 +55,7 @@ func WaitMgo() {
 
 func InitMgo(s *mgo.Session, cname string, drop bool) {
     mgosession = s.Copy()
-    collection = cname
 
-    portcoll = cname + "_nports"
     nodecoll = cname + "_nnodes"
     linkcoll = cname + "_nlinks"
     snetcoll = cname + "_nsnets"
@@ -67,15 +63,10 @@ func InitMgo(s *mgo.Session, cname string, drop bool) {
     var err error
 
     if drop {
-        dropCollection(portcoll)
         dropCollection(nodecoll)
         dropCollection(linkcoll)
         dropCollection(snetcoll)
     }
-
-    p := mgosession.DB(db).C(portcoll)
-    err = p.EnsureIndex(mgo.Index{ Key: []string{"module", "name", "pos"}, Unique: true })
-    if err != nil { log.Fatal(err) }
 
     n := mgosession.DB(db).C(nodecoll)
     err = n.EnsureIndex(mgo.Index{ Key: []string{"module", "name"}, Unique: true })
@@ -105,17 +96,7 @@ func dropCollection(coll string) {
     }
 }
 
-func cache() *mgo.Collection {
-    s := mgosession.Copy()
-    c := s.DB(db).C(collection)
-    return c
-}
-
 func (n *Netlist) Save() {
-    for _, port := range n.Ports {
-        jobs <- insertjob{portcoll, port}
-    }
-
     for _, node := range n.Nodes {
         jobs <- insertjob{nodecoll, node}
     }
@@ -145,31 +126,7 @@ func (n *Netlist) Save() {
 }
 
 func (n *Netlist) Load() {
-    // ports collection, query and iterator
-    pc := mgosession.DB(db).C(portcoll)
-
-    // Sort by pos to ensure port ordering.
-    pq := pc.Find(bson.M{"module": n.Name}).Select(bson.M{"_id":0}).Sort("pos")
-    pi := pq.Iter()
-
     var result bson.M
-
-    for pi.Next(&result) {
-        bytes, err := bson.Marshal(result)
-        if err !=nil {
-            log.Fatalf("Unable to marshal. module:%q name:%q err:%v",
-                       result["module"], result["name"], err)
-        }
-
-        var port rtl.Port
-        err = bson.Unmarshal(bytes, &port)
-        if err != nil {
-            log.Fatalf("Unable to umarshal. module:%q name:%q err:%v",
-                       result["module"], result["name"], err)
-        }
-
-        n.Ports = append(n.Ports, &port)
-    }
 
     // nodes collection, query and iterator
     nc := mgosession.DB(db).C(nodecoll)
