@@ -86,13 +86,14 @@ var cache string
 func main() {
     var path, server string 
     var threads int
-    var noparse bool
+    var noparse, qonly bool
 
-    flag.StringVar(&path,   "path",    "",          "path to folder with netlist files")
-    flag.StringVar(&server, "server",  "localhost", "name of mongodb server")
-    flag.StringVar(&cache,  "cache",   "",          "name of cache to save module info")
-    flag.IntVar(&threads,   "threads", 2,           "number of parallel threads to spawn")
-    flag.BoolVar(&noparse,  "noparse", false,       "include to skip parse step")
+    flag.StringVar(&path,   "path",       "",          "path to folder with netlist files")
+    flag.StringVar(&server, "server",     "localhost", "name of mongodb server")
+    flag.StringVar(&cache,  "cache",      "",          "name of cache to save module info")
+    flag.IntVar(&threads,   "threads",    2,           "number of parallel threads to spawn")
+    flag.BoolVar(&noparse,  "noparse",    false,       "include to skip parse step")
+    flag.BoolVar(&qonly,    "qismatonly", false,       "include to skip sart steps")
 
     flag.Parse()
 
@@ -157,6 +158,10 @@ func main() {
 
         rtl.DoneMgo() // Signal no more mongo insert jobs
         rtl.WaitMgo() // Wait for all insert jobs to complete
+    }
+
+    if qonly {
+        return
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -295,5 +300,5 @@ func main() {
 
     close(connTypeUpdateJobs)
     connTypeUpdateWg.Wait()
-    log.Printf("Done. Updated %d outputs and %d inputs", outcount, inocount)
+    log.Printf("Done. Updated %d outputs and %d inouts", outcount, inocount)
 }
