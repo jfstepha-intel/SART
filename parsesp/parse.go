@@ -6,7 +6,7 @@ import (
     "io/ioutil"
     "log"
     "os"
-    "strings"
+    // "strings"
     "sart/rtl"
 )
 
@@ -216,21 +216,21 @@ func (p *parser) connect() {
 
 func (p *parser) instance(m *rtl.Module) {
     // log.Println(p.token)
-    payload := []string{}
+    payload := &InstanceTokens{}
     for state := saveiname; state != nil; {
-        state = state(p, &payload)
+        state = state(p, payload)
     }
-    iname := payload[0]
-    itype := payload[len(payload)-1]
 
-    if strings.HasPrefix(iname, "X") {
-        m.AddNewInst(iname, itype)
+    iname, itype, actuals, props := payload.Resolve()
 
-        payload = payload[1:len(payload)-1]
+    m.AddNewInst(iname, itype)
 
-        for pos, actual := range payload {
-            m.AddNewConn(iname, itype, actual, pos)
-        }
+    for pos, actual := range actuals {
+        m.AddNewConn(iname, itype, actual, pos)
+    }
+
+    for _, prop := range props {
+        m.AddNewProp(iname, prop)
     }
 }
 

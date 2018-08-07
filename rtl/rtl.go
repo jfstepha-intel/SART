@@ -4,6 +4,7 @@ import (
     "fmt"
     "log"
     "sort"
+    "strings"
 )
 
 // Module Port /////////////////////////////////////////////////////////////////
@@ -77,6 +78,29 @@ func (c Conn) String() (str string) {
     return fmt.Sprintf("[%s > %s > %s]", c.Parent, c.Iname, c.Actual)
 }
 
+// Instance properties /////////////////////////////////////////////////////////
+
+type Prop struct {
+    Parent string     `bson:"module"`
+    Iname  string     `bson:"iname"`
+    Key    string     `bson:"key"`
+    Val    string     `bson:"val"`
+}
+
+func NewProp(parent, iname, prop string) *Prop {
+    parts := strings.Split(prop, "=")
+    if len(parts) != 2 {
+        log.Fatalln("Unable to interpret property:", prop)
+    }
+    p := &Prop {
+        Parent: parent,
+        Iname : iname,
+        Key   : parts[0],
+        Val   : parts[1],
+    }
+    return p
+}
+
 // Module //////////////////////////////////////////////////////////////////////
 
 type Module struct {
@@ -84,6 +108,7 @@ type Module struct {
     Ports   map[string]*Port
     Insts   map[string]*Inst
     Conns   map[string][]*Conn
+    Props   map[string][]*Prop
 }
 
 func NewModule(name string) *Module {
@@ -92,6 +117,7 @@ func NewModule(name string) *Module {
         Ports: make(map[string]*Port),
         Insts: make(map[string]*Inst),
         Conns: make(map[string][]*Conn),
+        Props: make(map[string][]*Prop),
     }
     return m
 }
@@ -120,6 +146,11 @@ func (m *Module) AddNewConn(iname, itype, actual string, pos int) {
     m.AddConn(conn)
 }
 
+func (m *Module) AddNewProp(iname, property string) {
+    prop := NewProp(m.Name, iname, property)
+    m.AddProp(prop)
+}
+
 func (m *Module) AddPort(port *Port) {
     m.Ports[port.Name] = port
 }
@@ -130,6 +161,10 @@ func (m *Module) AddInst(inst *Inst) {
 
 func (m *Module) AddConn(conn *Conn) {
     m.Conns[conn.Iname] = append(m.Conns[conn.Iname], conn)
+}
+
+func (m *Module) AddProp(prop *Prop) {
+    m.Props[prop.Iname] = append(m.Props[prop.Iname], prop)
 }
 
 func (m Module) IsSeq(iname string) bool {

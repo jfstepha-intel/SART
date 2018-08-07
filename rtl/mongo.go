@@ -11,7 +11,7 @@ var mgosession *mgo.Session
 
 const db = "sart"
 
-var collection, portcoll, instcoll, conncoll string
+var collection, portcoll, instcoll, conncoll, propcoll string
 
 ////////////////////////////////////////////////////////////////////////////////
 // Worker pool for insert jobs
@@ -59,6 +59,7 @@ func InitMgo(s *mgo.Session, cname string, drop bool) {
     portcoll = cname + "_ports"
     instcoll = cname + "_insts"
     conncoll = cname + "_conns"
+    propcoll = cname + "_props"
 
     var err error
 
@@ -66,6 +67,7 @@ func InitMgo(s *mgo.Session, cname string, drop bool) {
         dropCollection(portcoll)
         dropCollection(instcoll)
         dropCollection(conncoll)
+        dropCollection(propcoll)
     }
 
     // Each port in a module must have a unique name
@@ -127,6 +129,12 @@ func (m *Module) Save() {
     for _, conns := range m.Conns {
         for _, conn := range conns {
             jobs <- insertjob{conncoll, conn}
+        }
+    }
+
+    for _, props := range m.Props {
+        for _, prop := range props {
+            jobs <- insertjob{propcoll, prop}
         }
     }
 }
