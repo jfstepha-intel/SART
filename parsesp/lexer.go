@@ -19,6 +19,7 @@ const (
     Plus        // +
     Global      // .GLOBAL
     Subckt      // .SUBCKT
+    Connect     // .CONNECT
     Ends        // .ENDS
     Input       // INPUT
     Inout       // INOUT
@@ -130,7 +131,7 @@ func (l *lexer) errorf(format string, args ...interface{}) statefn {
 }
 
 const alpha = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_."
-const alnum = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.[]#=\"-"
+const alnum = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.[]#=\"-+"
 const digit = "0123456789"
 const bit   = "01"
 const hex   = "abcdefABCDEF"
@@ -148,12 +149,13 @@ func lexId(l *lexer) statefn {
     l.acceptRun(alnum)
     str := l.input[l.start:l.pos]
     switch {
-    case str == ".GLOBAL": l.emit(Global)
-    case str == ".SUBCKT": l.emit(Subckt)
-    case str == ".ENDS"  : l.emit(Ends)
-    case str == "INPUT"  : l.emit(Input)
-    case str == "INOUT"  : l.emit(Inout)
-    case str == "OUTPUT" : l.emit(Output)
+    case str == ".GLOBAL" : l.emit(Global)
+    case str == ".SUBCKT" : l.emit(Subckt)
+    case str == ".CONNECT": l.emit(Connect)
+    case str == ".ENDS"   : l.emit(Ends)
+    case str == "INPUT"   : l.emit(Input)
+    case str == "INOUT"   : l.emit(Inout)
+    case str == "OUTPUT"  : l.emit(Output)
     case strings.IndexRune(str, '=') >= 0: l.emit(Property)
     default              : l.emit(Id)
     }

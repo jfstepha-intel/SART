@@ -6,7 +6,7 @@ import (
     "io/ioutil"
     "log"
     "os"
-    "strings"
+    // "strings"
     "sart/rtl"
 )
 
@@ -120,7 +120,8 @@ func (p *parser) subckt() {
         m.AddNewPort(portname, portpos)
         portpos++
     }
-    p.accept(Property)
+    for p.accept(Property) {
+    }
     p.expect(Newline)
 
     // If there are more ports, the subsequent lines with port names will start
@@ -139,13 +140,22 @@ func (p *parser) subckt() {
     p.portspec(m)
     p.portspec(m)
 
-    // There usually are newlines after this; ignore.
-    for p.accept(Newline) {
-    }
+    done := false
+    for !done {
+        switch {
+            // There usually are newlines here; ignore any number.
+            case p.accept(Newline):
 
-    // There usually are comments or line delimitters around here; ignore.
-    if p.tokenis(Star) {
-        p.comment()
+            // There usually are comments or line delimitters, too; ignore.
+            case p.tokenis(Star): p.comment()
+
+            // Connect statements.
+            // TODO need to decide whether to capture this for SART.
+            case p.tokenis(Connect): p.connect()
+
+            // Stop after handling any number of the above situations.
+            default: done = true
+        }
     }
 
     // Next will be instantiations of other subckts. Those lines will start
@@ -155,10 +165,11 @@ func (p *parser) subckt() {
     }
 
     // Watch for the .ENDS directive followed by the name of the subckt.
+    lno := p.l.line
     p.expect(Ends)
     p.expect(Id)
 
-    log.Println("subckt:", m.Name)
+    log.Printf("line: %d subckt: %s", lno, m.Name)
     m.Save()
 }
 
@@ -197,6 +208,12 @@ func (p *parser) portspec(m *rtl.Module) {
     }
 }
 
+func (p *parser) connect() {
+    p.expect(Connect)
+    p.expect(Id)
+    p.expect(Id)
+}
+
 func (p *parser) instance(m *rtl.Module) {
     // log.Println(p.token)
     payload := []string{}
@@ -209,7 +226,7 @@ func (p *parser) instance(m *rtl.Module) {
     if strings.HasPrefix(iname, "X") {
         m.AddNewInst(iname, itype)
 
-        payload := payload[1:len(payload)-1]
+        payload = payload[1:len(payload)-1]
 
         for pos, actual := range payload {
             m.AddNewConn(iname, itype, actual, pos)
@@ -245,7 +262,8 @@ func saveiname(p *parser, inst *[]string) istatefn {
     switch {
         case p.tokenis(Id)      : return add2list
         case p.accept(Newline)  : return newline1
-        default                 : return p.errorf("saveiname: %v", p.token)
+        default                 : return p.errorf("saveiname: %v line:%d",
+                                                  p.token, p.l.line)
     }
 }
 
@@ -284,7 +302,7 @@ func poplist(p *parser, inst *[]string) istatefn {
     switch {
         case p.tokenis(Id, Ends): return success
         case p.tokenis(Property): return properties
-        default                 : return p.errorf("idorprop: %v", p.token)
+        default                 : return p.errorf("poplist: %v", p.token)
     }
 }
 
