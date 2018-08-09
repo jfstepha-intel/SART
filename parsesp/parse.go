@@ -230,7 +230,7 @@ func (p *parser) instance(m *rtl.Module) {
     }
 
     for _, prop := range props {
-        m.AddNewProp(iname, prop)
+        m.AddNewProp(iname, itype, prop)
     }
 }
 

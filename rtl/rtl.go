@@ -83,11 +83,12 @@ func (c Conn) String() (str string) {
 type Prop struct {
     Parent string     `bson:"module"`
     Iname  string     `bson:"iname"`
+    Itype  string     `bson:"itype"`
     Key    string     `bson:"key"`
     Val    string     `bson:"val"`
 }
 
-func NewProp(parent, iname, prop string) *Prop {
+func NewProp(parent, iname, itype, prop string) *Prop {
     parts := strings.Split(prop, "=")
     if len(parts) != 2 {
         log.Fatalln("Unable to interpret property:", prop)
@@ -95,6 +96,7 @@ func NewProp(parent, iname, prop string) *Prop {
     p := &Prop {
         Parent: parent,
         Iname : iname,
+        Itype : itype,
         Key   : parts[0],
         Val   : parts[1],
     }
@@ -146,8 +148,8 @@ func (m *Module) AddNewConn(iname, itype, actual string, pos int) {
     m.AddConn(conn)
 }
 
-func (m *Module) AddNewProp(iname, property string) {
-    prop := NewProp(m.Name, iname, property)
+func (m *Module) AddNewProp(iname, itype, property string) {
+    prop := NewProp(m.Name, iname, itype, property)
     m.AddProp(prop)
 }
 
