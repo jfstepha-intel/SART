@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"io"
 	"log"
 	"os"
 	"sart/rtl"
@@ -36,19 +38,19 @@ func NewModule(r *rtl.Module) *Module {
 func (m Module) Print(prefix string) {
 	sname := strings.TrimPrefix(m.Name, uprefix)
 	for k, v := range m.Flops {
-		log.Printf("FLOP %s/%s %s %d", prefix, sname, strings.TrimPrefix(k, uprefix), v)
+		fmt.Fprintf(SEQ, "%s/%s,%s,%d\n", prefix, sname, strings.TrimPrefix(k, uprefix), v)
 	}
 	for k, v := range m.Latch {
-		log.Printf("LATC %s/%s %s %d", prefix, sname, strings.TrimPrefix(k, uprefix), v)
+		fmt.Fprintf(SEQ, "%s/%s,%s,%d\n", prefix, sname, strings.TrimPrefix(k, uprefix), v)
 	}
 	for k, v := range m.Regfs {
-		log.Printf("REGF %s/%s %s %d", prefix, sname, strings.TrimPrefix(k, uprefix), v)
+		fmt.Fprintf(REG, "%s/%s,%s,%d\n", prefix, sname, strings.TrimPrefix(k, uprefix), v)
 	}
 	for k, v := range m.Embbs {
-		log.Printf("EMBB %s/%s %s %d", prefix, sname, strings.TrimPrefix(k, uprefix), v)
+		fmt.Fprintf(REG, "%s/%s,%s,%d\n", prefix, sname, strings.TrimPrefix(k, uprefix), v)
 	}
 
-    // For combinational logic, report sum of widths for each transistor type
+	// For combinational logic, report sum of widths for each transistor type
 	widths := make(map[string]float64)
 	for cell, count := range m.Combs {
 		for _, prop := range props[cell] {
@@ -58,7 +60,7 @@ func (m Module) Print(prefix string) {
 		}
 	}
 	for device, width := range widths {
-		log.Printf("COMB %s/%s %s %0.3f", prefix, sname, device, width)
+		fmt.Fprintf(COM, "%s/%s,%s,%0.3f\n", prefix, sname, device, width)
 	}
 }
 
@@ -174,6 +176,8 @@ func Count(m *rtl.Module, prefix string) {
 	LUT[m.Name] = x
 }
 
+var SEQ, REG, COM io.Writer
+
 func main() {
 	var server, cache, top string
 
@@ -207,6 +211,10 @@ func main() {
 	LUT = make(ModuleTable)
 
 	Count(m, "")
+
+	SEQ, err = os.Create("seq.csv")
+	REG, err = os.Create("reg.csv")
+	COM, err = os.Create("com.csv")
 
 	log.Println("Report")
 	LUT.Print(top, "")
