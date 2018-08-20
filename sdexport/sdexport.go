@@ -10,6 +10,8 @@ import (
 	mgo "gopkg.in/mgo.v2"
 )
 
+var uprefix = "tnt__a0_18ww10d4__"
+
 type Module struct {
 	*rtl.Module
 	Flops map[string]int
@@ -28,26 +30,37 @@ func NewModule(r *rtl.Module) *Module {
 		Embbs:  make(map[string]int),
 		Combs:  make(map[string]int),
 	}
-    return m
+	return m
 }
 
 func (m Module) Print(prefix string) {
+	sname := strings.TrimPrefix(m.Name, uprefix)
 	for k, v := range m.Flops {
-		log.Printf("%sFLOP: %s %s %d", prefix, m.Name, k, v)
+		log.Printf("FLOP %s/%s %s %d", prefix, sname, strings.TrimPrefix(k, uprefix), v)
 	}
 	for k, v := range m.Latch {
-		log.Printf("%sLATC: %s %s %d", prefix, m.Name, k, v)
+		log.Printf("LATC %s/%s %s %d", prefix, sname, strings.TrimPrefix(k, uprefix), v)
 	}
 	for k, v := range m.Regfs {
-		log.Printf("%sREGF: %s %s %d", prefix, m.Name, k, v)
+		log.Printf("REGF %s/%s %s %d", prefix, sname, strings.TrimPrefix(k, uprefix), v)
 	}
 	for k, v := range m.Embbs {
-		log.Printf("%sEMBB: %s %s %d", prefix, m.Name, k, v)
+		log.Printf("EMBB %s/%s %s %d", prefix, sname, strings.TrimPrefix(k, uprefix), v)
 	}
-	// for k, v := range m.Combs {
-	// 	log.Printf("%sCOMB: %s %d", prefix, k, v)
-	// }
+        widths := make(map[string]float64)
+	for cell, count := range m.Combs {
+		for _, prop := range props[cell] {
+            device := prop.Itype
+            width  := prop.Fval * float64(count)
+            widths[device] += width
+		}
+	}
+        for device, width := range widths {
+			log.Printf("COMB %s/%s %s %0.3f", prefix, sname, device, width)
+        }
 }
+
+type ModuleTable map[string]*Module
 
 func (t ModuleTable) Accumulate(top string, a *Module) {
 	var m *Module
@@ -78,8 +91,6 @@ func (t ModuleTable) Accumulate(top string, a *Module) {
 	}
 }
 
-type ModuleTable map[string]*Module
-
 func (t ModuleTable) Add(m *Module) {
 	t[m.Name] = m
 }
@@ -92,17 +103,9 @@ func (t ModuleTable) Print(top, prefix string) {
 		return
 	}
 
-	stop := strings.TrimPrefix(top, "tnt__a0_18ww10d4__")
+	stop := strings.TrimPrefix(top, uprefix)
 	if blackboxes.Has(stop) {
 		a := NewModule(m.Module)
-		//// a := &Module{
-		//// 	Module: m.Module,
-		//// 	Flops:  make(map[string]int),
-		//// 	Latch:  make(map[string]int),
-		//// 	Regfs:  make(map[string]int),
-		//// 	Embbs:  make(map[string]int),
-		//// 	Combs:  make(map[string]int),
-		//// }
 
 		t.Accumulate(top, a)
 		a.Print(prefix)
@@ -111,7 +114,7 @@ func (t ModuleTable) Print(top, prefix string) {
 
 	m.Print(prefix)
 
-	prefix += "|   "
+	prefix += "/" + stop
 	for _, inst := range m.Insts {
 		t.Print(inst.Type, prefix)
 	}
@@ -124,19 +127,11 @@ func Count(m *rtl.Module, prefix string) {
 	prefix += "|   "
 
 	x := NewModule(m)
-	//// x := &Module{
-	//// 	Module: m,
-	//// 	Flops:  make(map[string]int),
-	//// 	Latch:  make(map[string]int),
-	//// 	Regfs:  make(map[string]int),
-	//// 	Embbs:  make(map[string]int),
-	//// 	Combs:  make(map[string]int),
-	//// }
 
 	for _, inst := range m.Insts {
 		// log.Printf("%s%s %s", prefix, inst.Type, inst.Name)
 
-		itype := strings.TrimPrefix(inst.Type, "tnt__a0_18ww10d4__")
+		itype := strings.TrimPrefix(inst.Type, uprefix)
 
 		switch {
 		case strings.HasPrefix(itype, "dfxoddi"):
@@ -144,7 +139,7 @@ func Count(m *rtl.Module, prefix string) {
 		case strings.HasPrefix(itype, "ckdfxcoredop"):
 			continue
 		case strings.HasPrefix(itype, "m74"):
-			log.Printf("%s%s", prefix, itype)
+			x.Embbs[inst.Type]++
 			continue
 		case strings.HasPrefix(itype, "fa0f"):
 			x.Flops[inst.Type]++
@@ -197,6 +192,8 @@ func main() {
 	}
 
 	rtl.InitMgo(session, cache, false)
+
+	LoadWidths(session, cache)
 
 	log.SetFlags(log.Lshortfile)
 	log.SetOutput(os.Stdout)

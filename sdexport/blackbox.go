@@ -16,6 +16,9 @@ func (s StringSet) Has(str string) bool {
 var bblist = []string{
 	"ariqd",
 	"ariqm",
+	"arratmf",
+	"arratmi",
+	"rordym",
 }
 
 var blackboxes StringSet
