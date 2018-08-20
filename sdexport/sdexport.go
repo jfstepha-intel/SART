@@ -47,17 +47,19 @@ func (m Module) Print(prefix string) {
 	for k, v := range m.Embbs {
 		log.Printf("EMBB %s/%s %s %d", prefix, sname, strings.TrimPrefix(k, uprefix), v)
 	}
-        widths := make(map[string]float64)
+
+    // For combinational logic, report sum of widths for each transistor type
+	widths := make(map[string]float64)
 	for cell, count := range m.Combs {
 		for _, prop := range props[cell] {
-            device := prop.Itype
-            width  := prop.Fval * float64(count)
-            widths[device] += width
+			device := prop.Itype
+			width := prop.Fval * float64(count)
+			widths[device] += width
 		}
 	}
-        for device, width := range widths {
-			log.Printf("COMB %s/%s %s %0.3f", prefix, sname, device, width)
-        }
+	for device, width := range widths {
+		log.Printf("COMB %s/%s %s %0.3f", prefix, sname, device, width)
+	}
 }
 
 type ModuleTable map[string]*Module
