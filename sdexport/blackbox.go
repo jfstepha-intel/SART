@@ -14,11 +14,60 @@ func (s StringSet) Has(str string) bool {
 }
 
 var bblist = []string{
+	// arrp
 	"ariqd",
 	"ariqm",
 	"arratmf",
 	"arratmi",
 	"rordym",
+
+	// icup
+	"ictlb",
+	"iddftutc",
+
+	// idbp
+	"idbp_idb",
+
+	// iecp
+	"exdftutc",
+	"iecp_exprf0",
+	"iecp_exprf1",
+	"iecp_exprf2",
+
+	// mectp
+	"agdftutc",
+	"agutlb",
+	"dcstd",
+	"dctag",
+
+	// medp
+	"dcdata",
+	"dcfill",
+	"dcldrotate",
+	"dcstrotate",
+
+	// msup
+	"mspatch",
+
+	// pgp-s
+	"pgcorebotp",
+	"pgcoretopp",
+
+	// bus
+	"bbcp",
+	"bpip",
+	"busbotp",
+	"bustopp",
+	"bxqp",
+	"filp",
+	"infrp",
+	"pllcorep",
+	"pllifcp",
+
+	// l2
+	"l2hi2mpartp",
+	"l2lo2mpartp",
+	"l2pgramp",
 }
 
 var blackboxes StringSet

@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"regexp"
 	"sart/rtl"
 	"strings"
 
@@ -126,9 +127,11 @@ func (t ModuleTable) Print(top, prefix string) {
 
 var LUT ModuleTable
 
+var dfxre = regexp.MustCompile("dfx")
+
 func Count(m *rtl.Module, prefix string) {
-	log.Printf("%s%s", prefix, m.Name)
-	prefix += "|   "
+	// log.Printf("%s%s", prefix, m.Name)
+	// prefix += "|   "
 
 	x := NewModule(m)
 
@@ -138,9 +141,7 @@ func Count(m *rtl.Module, prefix string) {
 		itype := strings.TrimPrefix(inst.Type, uprefix)
 
 		switch {
-		case strings.HasPrefix(itype, "dfxoddi"):
-			continue
-		case strings.HasPrefix(itype, "ckdfxcoredop"):
+		case dfxre.MatchString(itype):
 			continue
 		case strings.HasPrefix(itype, "m74"):
 			x.Embbs[inst.Type]++
@@ -170,10 +171,11 @@ func Count(m *rtl.Module, prefix string) {
 
 		i := rtl.NewModule(inst.Type)
 		i.Load()
-		Count(i, prefix)
+		Count(i, prefix+"|   ")
 	}
 
 	LUT[m.Name] = x
+	log.Printf("%s%s", prefix, m.Name)
 }
 
 var SEQ, REG, COM io.Writer
