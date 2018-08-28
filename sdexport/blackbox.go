@@ -19,26 +19,33 @@ var bblist = []string{
 	"ariqm",
 	"arratmf",
 	"arratmi",
+	"arrp_ardftutc",
 	"rordym",
+
+	// fpap
+	"fpap_fpdftutc",
+
+	// fpdp
+	"fpdp_frfp",
 
 	// icup
 	"ictlb",
-	"iddftutc",
+	"icup_iddftutc",
 
 	// idbp
 	"idbp_idb",
 
 	// iecp
-	"exdftutc",
+	"iecp_exdftutc",
 	"iecp_exprf0",
 	"iecp_exprf1",
 	"iecp_exprf2",
 
 	// mectp
-	"agdftutc",
 	"agutlb",
 	"dcstd",
 	"dctag",
+	"mectp_agdftutc",
 
 	// medp
 	"dcdata",
@@ -52,6 +59,9 @@ var bblist = []string{
 	// pgp-s
 	"pgcorebotp",
 	"pgcoretopp",
+
+	"dv15idvtallps",
+	"dfxoddi",
 
 	// bus
 	"bbcp",
@@ -68,6 +78,24 @@ var bblist = []string{
 	"l2hi2mpartp",
 	"l2lo2mpartp",
 	"l2pgramp",
+
+	// analog blocks to black box
+	"afscaip",
+	"apdesdresistor",
+	"apdl2c6pg",
+	"bgcaip",
+	"ckblspinecustom",
+	"ckgclkphasedet",
+	"dpllcaip",
+	"lpldocaip",
+	"pgatecaip",
+	"pgmodh",
+	"pgmodv",
+	"tadcd",
+	"thbackendcaip",
+	"thdiodecaip",
+	"thremotecaip",
+	"trcpath",
 }
 
 var blackboxes StringSet

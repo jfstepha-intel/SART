@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"sart/rtl"
+	"sart/set"
 	"strconv"
 	"strings"
 
@@ -20,6 +21,12 @@ type PropMap map[string][]Prop
 
 func (m PropMap) Add(prop Prop) {
 	m[prop.Parent] = append(m[prop.Parent], prop)
+}
+
+func (m PropMap) Print() {
+	for key, val := range m {
+		log.Println(key, val)
+	}
 }
 
 var props PropMap
@@ -52,6 +59,22 @@ func LoadWidths(session *mgo.Session, cache string) {
 	}
 }
 
+var primparents set.Set
+
+func LoadPrimParents(session *mgo.Session, cache string) {
+	var ppresults []interface{}
+	err := session.DB("sart").C(cache+"_insts").Find(bson.M{"isprimparent": true}).Distinct("module", &ppresults)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, primparent := range ppresults {
+		primparents.Add(primparent.(string))
+	}
+}
+
 func init() {
 	props = make(PropMap)
+
+	primparents = set.New()
 }

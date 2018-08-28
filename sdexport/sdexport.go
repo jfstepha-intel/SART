@@ -13,7 +13,7 @@ import (
 	mgo "gopkg.in/mgo.v2"
 )
 
-var uprefix = "tnt__a0_18ww10d4__"
+var uprefix = "tnt__a0_18ww02d6__"
 
 type Module struct {
 	*rtl.Module
@@ -141,8 +141,8 @@ func Count(m *rtl.Module, prefix string) {
 		itype := strings.TrimPrefix(inst.Type, uprefix)
 
 		switch {
-		case dfxre.MatchString(itype):
-			continue
+		// case dfxre.MatchString(itype):
+		// 	continue
 		case strings.HasPrefix(itype, "m74"):
 			x.Embbs[inst.Type]++
 			continue
@@ -167,11 +167,14 @@ func Count(m *rtl.Module, prefix string) {
 		case strings.HasPrefix(itype, "fa7"):
 			x.Combs[inst.Type]++
 			continue
+		case primparents.Has(inst.Type):
+			x.Combs[inst.Type]++
+			continue
+		default:
+			i := rtl.NewModule(inst.Type)
+			i.Load()
+			Count(i, prefix+"|   ")
 		}
-
-		i := rtl.NewModule(inst.Type)
-		i.Load()
-		Count(i, prefix+"|   ")
 	}
 
 	LUT[m.Name] = x
@@ -201,10 +204,11 @@ func main() {
 
 	rtl.InitMgo(session, cache, false)
 
-	LoadWidths(session, cache)
-
 	log.SetFlags(log.Lshortfile)
 	log.SetOutput(os.Stdout)
+
+	LoadWidths(session, cache)
+	LoadPrimParents(session, cache)
 
 	m := rtl.NewModule(top)
 
