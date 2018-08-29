@@ -38,6 +38,7 @@ type Inst struct {
     Type   string       `bson:"type"`
     IsPrim bool         `bson:"isprim"`
     IsSeq  bool         `bson:"isseq"`
+    IsPrimParent bool   `bson:"isprimparent"`
 }
 
 func NewInst(parent, iname, itype string) *Inst {
@@ -133,7 +134,8 @@ func (m *Module) AddNewPort(name string, pos int) {
 
 func (m Module) SetPortType(name, typ string) {
     if _, ok := m.Ports[name]; !ok {
-        log.Fatalln("Unknown port:", name)
+        log.Printf("Unknown port: %s (%s)", name, typ)
+        return
     }
     m.Ports[name].SetType(typ)
 }
