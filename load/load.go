@@ -182,30 +182,26 @@ func main() {
 	// module definition was not found as primitives.
 	////////////////////////////////////////////////////////////////////////////
 
-	// These are the modules for which a definition is available -- defined
-	// modules. This typically provides the universe of available modules.
-	var defnmodules []interface{}
-	err = session.DB("sart").C(cache+"_insts").Find(nil).Distinct("type", &defnmodules)
+	log.Println("Marking primitives..")
+
+	// In the instance collection, a list of all distinct types is the universe
+	// of everything that has been instantiated at least once.
+	var allmodules []interface{}
+	err = session.DB("sart").C(cache+"_insts").Find(nil).Distinct("type", &allmodules)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// These are modules that have instantiations inside them.
+	// These are modules that have instantiations inside them. I.e there is a
+	// SUBCKT definition
 	var instmodules []interface{}
 	err = session.DB("sart").C(cache+"_insts").Find(nil).Distinct("module", &instmodules)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// These are modules that have 'X' instantiations inside them.
-	var primparents []interface{}
-	err = session.DB("sart").C(cache+"_insts").Find(bson.M{"name": bson.RegEx{"^X", ""}}).Distinct("module", &primparents)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	// Create sets out of these lists
-	defn := set.New(defnmodules...)
+	allm := set.New(allmodules...)
 	inst := set.New(instmodules...)
 
 	// Setup worker pool for update queries ////////////////////////////////////
@@ -219,7 +215,7 @@ func main() {
 	}
 
 	// Remove the non-empty modules from the universe to identify primitives.
-	prims := defn.Not(inst).Sort()
+	prims := allm.Not(inst).Sort()
 	total = len(prims)
 	count = 0
 
@@ -237,6 +233,13 @@ func main() {
 
 	log.Println("Marking primitive parents..")
 
+	// These are modules that have 'X' instantiations inside them.
+	var primparents []interface{}
+	err = session.DB("sart").C(cache+"_insts").Find(bson.M{"name": bson.RegEx{"^X", ""}}).Distinct("module", &primparents)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	var prmpwg sync.WaitGroup
 	prmpjobs := make(chan string, 100)
 
@@ -247,7 +250,7 @@ func main() {
 
 	// Remove the modules with X instantiations inside them from the universe
 	// to identify primitive parents.
-	prmps := defn.Not(set.New(primparents...)).List()
+	prmps := allm.Not(set.New(primparents...)).List()
 	total = len(prmps)
 	count = 0
 
