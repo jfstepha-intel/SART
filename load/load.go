@@ -185,7 +185,7 @@ func main() {
 	// These are the modules for which a definition is available -- defined
 	// modules. This typically provides the universe of available modules.
 	var defnmodules []interface{}
-	err = session.DB("sart").C(cache+"_ports").Find(nil).Distinct("module", &defnmodules)
+	err = session.DB("sart").C(cache+"_insts").Find(nil).Distinct("type", &defnmodules)
 	if err != nil {
 		log.Fatal(err)
 	}
