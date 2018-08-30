@@ -1,70 +1,81 @@
 package main
 
 import (
-    "flag"
-    "io"
-    "log"
-    "os"
-    "time"
+	"flag"
+	"io"
+	"log"
+	"os"
+	"time"
 
-    "gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2"
 
-    "sart/netlist"
-    "sart/rtl"
+	"sart/netlist"
+	"sart/rtl"
 )
 
 func main() {
-    var cache, top, ace, logp, server string
+	var cache, top, ace, logp, server string
 
-    flag.StringVar(&cache,  "cache",  "",          "name of cache from which to fetch module info.")
-    flag.StringVar(&top,    "top",    "",          "name of topcell on which to run sart")
-    flag.StringVar(&ace,    "ace",    "",          "path to ace structs file")
-    flag.StringVar(&logp,   "log",    "",          "path to file where log messages should be redirected")
-    flag.StringVar(&server, "server", "localhost", "name of mongodb server")
+    var debug bool
 
-    flag.Parse()
+	flag.StringVar(&cache, "cache", "", "name of cache from which to fetch module info.")
+	flag.StringVar(&top, "top", "", "name of topcell on which to run sart")
+	flag.StringVar(&ace, "ace", "", "path to ace structs file")
+	flag.StringVar(&logp, "log", "", "path to file where log messages should be redirected")
+	flag.StringVar(&server, "server", "localhost", "name of mongodb server")
 
-    log.SetFlags(log.Lshortfile)
-    log.SetFlags(0)
+	flag.BoolVar(&debug, "debug", false, "enable debug mode")
 
-    if cache == "" {
-        flag.PrintDefaults()
-        log.Fatal("Insufficient arguments")
-    }
+	flag.Parse()
 
-    session, err := mgo.Dial(server)
-    if err != nil {
-        log.Fatal(err)
-    }
-    rtl.InitMgo(session, cache, false)
+	log.SetFlags(0)
+	if debug {
+		log.SetFlags(log.Lshortfile)
+	}
 
-    var logw io.Writer
-    if logp != "" {
-        var err error
-        logw, err = os.Create(logp)
-        if err != nil {
-            log.Fatal(err)
-        }
-    } else {
-        logw = os.Stdout
-    }
-    log.SetOutput(logw)
+	if cache == "" {
+		flag.PrintDefaults()
+		log.Fatal("Insufficient arguments")
+	}
 
-    netlist.InitMgo(session, cache, true)
+	session, err := mgo.Dial(server)
+	if err != nil {
+		log.Fatal(err)
+	}
+	rtl.InitMgo(session, cache, false)
 
-    start := time.Now()
-    log.Println(netlist.New("", top, top))
+	var logw io.Writer
+	if logp != "" {
+		var err error
+		logw, err = os.Create(logp)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		logw = os.Stdout
+	}
+	log.SetOutput(logw)
 
-    netlist.DoneMgo()
-    netlist.WaitMgo()
-    log.Println("Elapsed:", time.Since(start))
+	var start time.Time
 
-    start = time.Now()
-    n := netlist.NewNetlist(top)
-    n.Load()
-    log.Println("Elapsed:", time.Since(start))
-    log.Println(n)
+	netlist.InitMgo(session, cache, true)
 
-    log.Println("Starting walks..")
-    n.WalkDown()
+	start = time.Now()
+	netlist.New("", top, top)
+
+	netlist.DoneMgo()
+	netlist.WaitMgo()
+	log.Println("Netlist built. Elapsed:", time.Since(start))
+
+	start = time.Now()
+	n := netlist.NewNetlist(top)
+	n.Load()
+	log.Println("Netlist loaded. Elapsed:", time.Since(start))
+	log.Println(n)
+
+	log.Println("Starting walks..")
+	changed1 := n.Walk()
+	log.Println(changed1)
+
+	n.Stats("")
 }
