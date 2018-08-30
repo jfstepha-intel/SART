@@ -19,6 +19,9 @@ type Node struct {
     IsPrim  bool
     IsSeqn  bool
     IsWire  bool
+    IsAce   bool
+    RpAce   AceTerms
+    WpAce   AceTerms
 }
 
 func NewNode(parent, name, typ string) *Node {
@@ -54,7 +57,12 @@ func (n Node) String() (str string) {
         case n.IsPort: str += "PORT "
         case n.IsWire: str += "WIRE "
     }
-    str += n.Fullname() + "]"
+    str += n.Fullname()
+    if n.IsAce {
+        str += " ACE"
+    }
+    str += "] "
+    str += fmt.Sprintf("r:0x%x w:0x%x", n.RpAce, n.WpAce)
     return
 }
 
@@ -66,6 +74,7 @@ func (n Node) Fullname() string {
 
 type Netlist struct {
     Name    string
+    IsAce   bool
     Ports   []*rtl.Port
     Nodes   map[string]*Node    // Holds all nodes
     Inputs  map[string]*Node    // Holds all nodes corresponding to input ports
@@ -91,7 +100,9 @@ func NewNetlist(name string) *Netlist {
 func New(prefix, mname, iname string) *Netlist {
     m := rtl.LoadModule(mname)
 
-    log.Printf("%s%s [%v]", prefix, iname, m)
+    ace, aceid := m.Aceness()
+
+    // log.Printf("%s%s [%v]", prefix, iname, m)
 
     n := NewNetlist(iname)
 
@@ -102,8 +113,17 @@ func New(prefix, mname, iname string) *Netlist {
         p := NewPortNode(iname, pname, port.Type)
         n.AddNode(p)
 
+        p.IsAce = ace
+        p.RpAce = AceTerms(aceid)
+        p.WpAce = AceTerms(aceid)
+
         nport := rtl.NewPort(iname, pname, pos)
         n.Ports = append(n.Ports, nport)
+    }
+
+    if ace  {
+        n.Save()
+        return n
     }
 
     // Go through all connections -- actual names of all instance connections.
@@ -214,6 +234,8 @@ func (n *Netlist) AddNode(node *Node) {
         case "INOUT" : n.Inouts[fullname]  = node
         case "OUTPUT": n.Outputs[fullname] = node
     }
+
+    n.IsAce = node.IsAce
 }
 
 func (n *Netlist) LocateNode(name string) *Node {
