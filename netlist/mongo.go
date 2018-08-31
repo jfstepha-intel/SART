@@ -156,6 +156,10 @@ func (n *Netlist) Load() {
 		n.AddNode(&node)
 	}
 
+	// Use parallel loader for subnets. This should make the next step much
+	// more performant.
+	loader := NewNetlistLoader()
+
 	// subnet collection, query and iterator
 	sc := mgosession.DB(db).C(snetcoll)
 	sq := sc.Find(bson.M{"module": n.Name}).Select(bson.M{"_id": 0, "module": 0})
@@ -165,8 +169,16 @@ func (n *Netlist) Load() {
 		fullname := result["name"].(string)
 		subnet := NewNetlist(fullname)
 		n.Subnets[fullname] = subnet
-		subnet.Load()
+
+		// This is effectively subnet.Load() except that this will run parallel
+		loader.Add(subnet)
 	}
+
+	// Indicate that there will be no more load jobs and wait till all subnets
+	// are loaded. If we don't wait the links being loaded next will not have
+	// all the nodes needed to get hooked up.
+	loader.Done()
+	loader.Wait()
 
 	// link collection, query and iterator
 	lc := mgosession.DB(db).C(linkcoll)
@@ -189,4 +201,54 @@ func (n *Netlist) Load() {
 
 		n.Connect(lnode, rnode)
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+type Loader interface {
+	Load()
+}
+
+type NetlistLoader struct {
+	loadjobs chan Loader
+	wg       sync.WaitGroup
+}
+
+func NewNetlistLoader() *NetlistLoader {
+	l := &NetlistLoader{
+		loadjobs: make(chan Loader, 1000),
+	}
+
+	for i := 0; i < MaxMgoThreads; i++ {
+		l.wg.Add(1)
+		go l.loadWorker()
+	}
+
+	return l
+}
+
+// loadworker represents one thread
+func (l *NetlistLoader) loadWorker() {
+	for job := range l.loadjobs {
+		job.Load()
+	}
+	l.wg.Done()
+}
+
+// Add a job to the loader
+func (l *NetlistLoader) Add(job Loader) {
+	l.loadjobs <- job
+}
+
+// Done is to be invoked when there are no more jobs for NetlistLoader. It
+// closes the internal channel used for scheduling and synchronizing.
+func (l *NetlistLoader) Done() {
+	close(l.loadjobs)
+}
+
+// Wait waits till all the load jobs have completed. Wait is to be invoked
+// after Done is invoked to indicate that there will be no more jobs for
+// NetlistLoader.
+func (l *NetlistLoader) Wait() {
+	l.wg.Wait()
 }
