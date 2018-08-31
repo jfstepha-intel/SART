@@ -16,7 +16,7 @@ import (
 func main() {
 	var cache, top, ace, logp, server string
 
-    var debug bool
+	var debug, nobuild bool
 
 	flag.StringVar(&cache, "cache", "", "name of cache from which to fetch module info.")
 	flag.StringVar(&top, "top", "", "name of topcell on which to run sart")
@@ -25,6 +25,7 @@ func main() {
 	flag.StringVar(&server, "server", "localhost", "name of mongodb server")
 
 	flag.BoolVar(&debug, "debug", false, "enable debug mode")
+	flag.BoolVar(&nobuild, "nobuild", false, "use to skip netlist build step")
 
 	flag.Parse()
 
@@ -58,16 +59,20 @@ func main() {
 
 	var start time.Time
 
-	netlist.InitMgo(session, cache, true)
+    if nobuild {
+        netlist.InitMgo(session, cache, false)
+    } else {
+        netlist.InitMgo(session, cache, true)
 
-	start = time.Now()
-	// netlist.New("", top, top)
-	nl := netlist.New("", top, top)
-	log.Println(nl)
+		start = time.Now()
+		// netlist.New("", top, top)
+		nl := netlist.New("", top, top)
+		log.Println(nl)
 
-	netlist.DoneMgo()
-	netlist.WaitMgo()
-	log.Println("Netlist built. Elapsed:", time.Since(start))
+		netlist.DoneMgo()
+		netlist.WaitMgo()
+		log.Println("Netlist built. Elapsed:", time.Since(start))
+	}
 
 	start = time.Now()
 	n := netlist.NewNetlist(top)
