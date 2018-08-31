@@ -61,7 +61,9 @@ func main() {
 	netlist.InitMgo(session, cache, true)
 
 	start = time.Now()
-	netlist.New("", top, top)
+	// netlist.New("", top, top)
+	nl := netlist.New("", top, top)
+	log.Println(nl)
 
 	netlist.DoneMgo()
 	netlist.WaitMgo()

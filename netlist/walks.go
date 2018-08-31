@@ -70,10 +70,10 @@ func (n *Netlist) WalkDn(prefix string) (changed int) {
 }
 
 func (n *Netlist) WalkUp(prefix string) (changed int) {
-    log.Printf("%sWalking up [NETL:%s] ACE:%v", prefix, n.Name, n.IsAce)
+    // log.Printf("%sWalking up [NETL:%s] ACE:%v", prefix, n.Name, n.IsAce)
     prefix += "|   "
 
-    log.Printf("%sPropagating outputs", prefix)
+    // log.Printf("%sPropagating outputs", prefix)
     for _, output := range n.Outputs {
         if output.WpAce != 0 {
             for _, lnode := range n.Links[output.Fullname()] {
@@ -83,7 +83,7 @@ func (n *Netlist) WalkUp(prefix string) (changed int) {
     }
 
     for _, subnet := range n.Subnets {
-        log.Printf("%sPropagating subnet %s ACE:%v", prefix, subnet.Name, subnet.IsAce)
+        // log.Printf("%sPropagating subnet %s ACE:%v", prefix, subnet.Name, subnet.IsAce)
         if subnet.IsAce {
             for _, ace := range subnet.Inputs {
                 if !ace.IsAce {

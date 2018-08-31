@@ -120,6 +120,9 @@ func New(prefix, mname, iname string) *Netlist {
 		p.RpAce = AceTerms(aceid)
 		p.WpAce = AceTerms(aceid)
 
+		// This list is needed only to look up the formal node at the time of
+		// netlist construction. It will not be saved to mongo, nor will it be
+		// populated in a Load()-ed netlist.
 		nport := rtl.NewPort(iname, pname, pos)
 		n.Ports = append(n.Ports, nport)
 	}
@@ -310,7 +313,12 @@ func (n Netlist) NumNodes() (count int) {
 }
 
 func (n Netlist) NumPorts() (count int) {
-	return len(n.Ports)
+	for _, node := range n.Nodes {
+		if node.IsPort {
+			count++
+		}
+	}
+	return
 }
 
 func (n Netlist) NumPrims() (count int) {
