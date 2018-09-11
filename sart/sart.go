@@ -59,10 +59,10 @@ func main() {
 
 	var start time.Time
 
-    if nobuild {
-        netlist.InitMgo(session, cache, false)
-    } else {
-        netlist.InitMgo(session, cache, true)
+	if nobuild {
+		netlist.InitMgo(session, cache, false)
+	} else {
+		netlist.InitMgo(session, cache, true)
 
 		start = time.Now()
 		// netlist.New("", top, top)
