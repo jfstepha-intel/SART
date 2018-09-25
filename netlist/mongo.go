@@ -132,6 +132,12 @@ func (n *Netlist) Save() {
 }
 
 func (n *Netlist) Load() {
+	n.LoadNodes(0)
+	n.LoadLinks(0)
+}
+
+func (n *Netlist) LoadNodes(level int) {
+	log.Printf("Nodes Load (%d) %q", level, n.Name)
 	var result bson.M
 
 	// nodes collection, query and iterator
@@ -156,9 +162,8 @@ func (n *Netlist) Load() {
 		n.AddNode(&node)
 	}
 
-	// Use parallel loader for subnets. This should make the next step much
-	// more performant.
-	loader := NewNetlistLoader()
+	// Use parallel loader for subnet nodes.
+	loader := NewNodeLoader(level + 1)
 
 	// subnet collection, query and iterator
 	sc := mgosession.DB(db).C(snetcoll)
@@ -170,7 +175,8 @@ func (n *Netlist) Load() {
 		subnet := NewNetlist(fullname)
 		n.Subnets[fullname] = subnet
 
-		// This is effectively subnet.Load() except that this will run parallel
+		// This is effectively subnet.LoadNodes() except that this will run in
+		// parallel through a worker pool.
 		loader.Add(subnet)
 	}
 
@@ -179,6 +185,13 @@ func (n *Netlist) Load() {
 	// all the nodes needed to get hooked up.
 	loader.Done()
 	loader.Wait()
+
+	log.Printf("Nodes Done (%d) %q", level, n.Name)
+}
+
+func (n *Netlist) LoadLinks(level int) {
+	log.Printf("Links Load (%d) %q", level, n.Name)
+	var result bson.M
 
 	// link collection, query and iterator
 	lc := mgosession.DB(db).C(linkcoll)
@@ -201,12 +214,27 @@ func (n *Netlist) Load() {
 
 		n.Connect(lnode, rnode)
 	}
+
+	// Use parallel loader for subnet links.
+	loader := NewLinkLoader(level + 1)
+
+	for _, subnet := range n.Subnets {
+		// This is effectively subnet.LoadLinks() except that this will run in
+		// parallel through a worker pool.
+		loader.Add(subnet)
+	}
+
+	loader.Done()
+	loader.Wait()
+
+	log.Printf("Links Done (%d) %q", level, n.Name)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 type Loader interface {
-	Load()
+	LoadNodes(int)
+	LoadLinks(int)
 }
 
 type NetlistLoader struct {
@@ -218,21 +246,39 @@ func NewNetlistLoader() *NetlistLoader {
 	l := &NetlistLoader{
 		loadjobs: make(chan Loader, 1000),
 	}
+	return l
+}
+
+func NewNodeLoader(level int) *NetlistLoader {
+	l := NewNetlistLoader()
 
 	for i := 0; i < MaxMgoThreads; i++ {
 		l.wg.Add(1)
-		go l.loadWorker()
+		go func() {
+			for job := range l.loadjobs {
+				job.LoadNodes(level)
+			}
+			l.wg.Done()
+		}()
 	}
 
 	return l
 }
 
-// loadworker represents one thread
-func (l *NetlistLoader) loadWorker() {
-	for job := range l.loadjobs {
-		job.Load()
+func NewLinkLoader(level int) *NetlistLoader {
+	l := NewNetlistLoader()
+
+	for i := 0; i < MaxMgoThreads; i++ {
+		l.wg.Add(1)
+		go func() {
+			for job := range l.loadjobs {
+				job.LoadLinks(level)
+			}
+			l.wg.Done()
+		}()
 	}
-	l.wg.Done()
+
+	return l
 }
 
 // Add a job to the loader
