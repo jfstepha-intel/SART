@@ -4,20 +4,12 @@ import (
 	"log"
 )
 
-type AceTerms uint64
-
-func (t *AceTerms) Add(a AceTerms) {
-	*t |= a
+func (n *Node) AddRpAce(a *Node) {
+	n.RpAce.SetBitsOf(*a.RpAce)
 }
 
-func (n *Node) AddRpAce(a *Node) AceTerms {
-	n.RpAce.Add(a.RpAce)
-	return n.RpAce
-}
-
-func (n *Node) AddWpAce(a *Node) AceTerms {
-	n.WpAce.Add(a.WpAce)
-	return n.WpAce
+func (n *Node) AddWpAce(a *Node) {
+	n.WpAce.SetBitsOf(*a.WpAce)
 }
 
 func (n *Netlist) Walk() (changed int) {
@@ -29,12 +21,12 @@ func (n *Netlist) Walk() (changed int) {
 }
 
 func (n *Netlist) WalkDn(prefix string) (changed int) {
-	// log.Printf("%s Walking down [NETL:%s]", prefix, n.Name, n.IsAce)
+	// log.Printf("%s Walking down [NETL:%s] ACE:%v", prefix, n.Name, n.IsAce)
 	prefix += "|   "
 
 	// log.Printf("%sPropagating inputs", prefix)
 	for _, input := range n.Inputs {
-		if input.RpAce != 0 {
+		if !input.RpAce.NoneSet() {
 			for _, rnode := range n.Links[input.Fullname()] {
 				changed += n.PropDn(prefix+"|   ", rnode, input)
 			}
@@ -57,7 +49,7 @@ func (n *Netlist) WalkDn(prefix string) (changed int) {
 			changed += subnet.WalkDn(prefix)
 
 			for _, output := range subnet.Outputs {
-				if output.RpAce != 0 {
+				if !output.RpAce.NoneSet() {
 					for _, rnode := range n.Links[output.Fullname()] {
 						changed += n.PropDn(prefix+"|   ", rnode, output)
 					}
@@ -75,7 +67,7 @@ func (n *Netlist) WalkUp(prefix string) (changed int) {
 
 	// log.Printf("%sPropagating outputs", prefix)
 	for _, output := range n.Outputs {
-		if output.WpAce != 0 {
+		if !output.WpAce.NoneSet() {
 			for _, lnode := range n.Links[output.Fullname()] {
 				changed += n.PropUp(prefix+"|   ", lnode, output)
 			}
@@ -99,7 +91,7 @@ func (n *Netlist) WalkUp(prefix string) (changed int) {
 			changed += subnet.WalkUp(prefix)
 
 			for _, input := range subnet.Inputs {
-				if input.WpAce != 0 {
+				if !input.WpAce.NoneSet() {
 					for _, lnode := range n.Links[input.Fullname()] {
 						changed += n.PropUp(prefix+"|   ", lnode, input)
 					}
@@ -113,8 +105,9 @@ func (n *Netlist) WalkUp(prefix string) (changed int) {
 
 func (n *Netlist) PropDn(prefix string, node *Node, ace *Node) (changed int) {
 	// log.Printf("%sMarking %s with %s", prefix, node, ace)
-	prev := node.RpAce
-	next := node.AddRpAce(ace)
+	prev := node.RpAce.String()
+	node.AddRpAce(ace)
+	next := node.RpAce.String()
 
 	if prev != next {
 		changed++
@@ -137,9 +130,10 @@ func (n *Netlist) PropDn(prefix string, node *Node, ace *Node) (changed int) {
 }
 
 func (n *Netlist) PropUp(prefix string, node *Node, ace *Node) (changed int) {
-	log.Printf("%sPropUp: Marking %s with %s", prefix, node, ace)
-	prev := node.WpAce
-	next := node.AddWpAce(ace)
+	// log.Printf("%sPropUp: Marking %s with %s", prefix, node, ace)
+	prev := node.WpAce.String()
+	node.AddWpAce(ace)
+	next := node.WpAce.String()
 
 	if prev != next {
 		changed++
