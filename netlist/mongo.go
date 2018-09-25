@@ -137,22 +137,40 @@ func MarkAceNodes(acestructs []ace.AceStruct) {
 	s := mgosession.Copy()
 	c := s.DB(db).C(nodecoll)
 
-	log.Println("Marking Ace nodes")
-
 	maxace := len(acestructs)
+
+	log.Println("Reseting Ace info..")
+
+	bf := bitfield.New(maxace)
+	sel := bson.M{"isace": true}
+	upd := bson.M{"$set": bson.M{"isace": false, "rpace": bf, "wpace": bf}}
+
+	ci, err := c.UpdateAll(sel, upd)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Reset %d nodes.", ci.Updated)
+
+	////////////////////////////////////////////////////////////////////////////
+
+	log.Println("Marking Ace nodes..")
 
 	for i, s := range acestructs {
 		rpbf := bitfield.New(maxace)
+		wpbf := bitfield.New(maxace)
 		rpbf.Set(i)
-		sel := bson.M{"module": bson.RegEx{s.Regex, ""}}
-		upd := bson.M{"$set": bson.M{"rpace": rpbf, "isace": true}}
+		wpbf.Set(i)
+
+		sel := bson.M{"module": bson.RegEx{s.Regex, ""}, "type": "OUTPUT"}
+		upd := bson.M{"$set": bson.M{"isace": true, "rpace": rpbf, "wpace": wpbf}}
 
 		ci, err := c.UpdateAll(sel, upd)
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Println(ci)
+		log.Printf("(%d/%d) Marked %d nodes ACE with regex %q", i+1, maxace, ci.Updated, s.Regex)
 	}
+	log.Println("Done marking ACE nodes.")
 }
 
 func (n *Netlist) Load() {
@@ -161,7 +179,7 @@ func (n *Netlist) Load() {
 }
 
 func (n *Netlist) LoadNodes(level int) {
-	log.Printf("Nodes Load (%d) %q", level, n.Name)
+	// log.Printf("Nodes Load (%d) %q", level, n.Name)
 	var result bson.M
 
 	// nodes collection, query and iterator
@@ -210,11 +228,11 @@ func (n *Netlist) LoadNodes(level int) {
 	loader.Done()
 	loader.Wait()
 
-	log.Printf("Nodes Done (%d) %q", level, n.Name)
+	// log.Printf("Nodes Done (%d) %q", level, n.Name)
 }
 
 func (n *Netlist) LoadLinks(level int) {
-	log.Printf("Links Load (%d) %q", level, n.Name)
+	// log.Printf("Links Load (%d) %q", level, n.Name)
 	var result bson.M
 
 	// link collection, query and iterator
@@ -251,7 +269,7 @@ func (n *Netlist) LoadLinks(level int) {
 	loader.Done()
 	loader.Wait()
 
-	log.Printf("Links Done (%d) %q", level, n.Name)
+	// log.Printf("Links Done (%d) %q", level, n.Name)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

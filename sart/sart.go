@@ -111,6 +111,8 @@ func main() {
 
 	// Load netlist from mongo /////////////////////////////////////////////////
 
+	log.Println("Loading netlist..")
+
 	start = time.Now()
 	n := netlist.NewNetlist(top)
 	n.Load()
