@@ -3,6 +3,7 @@ package netlist
 import (
 	"fmt"
 	"log"
+	"sart/bitfield"
 	"sart/rtl"
 	"strings"
 )
@@ -20,8 +21,8 @@ type Node struct {
 	IsSeqn bool
 	IsWire bool
 	IsAce  bool
-	RpAce  AceTerms
-	WpAce  AceTerms
+	RpAce  *bitfield.BitField
+	WpAce  *bitfield.BitField
 }
 
 func NewNode(parent, name, typ string) *Node {
@@ -29,6 +30,8 @@ func NewNode(parent, name, typ string) *Node {
 		Parent: parent,
 		Name:   name,
 		Type:   typ,
+		RpAce:  bitfield.New(rtl.MaxAce()),
+		WpAce:  bitfield.New(rtl.MaxAce()),
 	}
 }
 
@@ -65,7 +68,7 @@ func (n Node) String() (str string) {
 		str += " ACE"
 	}
 	str += "] "
-	str += fmt.Sprintf("r:0x%x w:0x%x", n.RpAce, n.WpAce)
+	str += fmt.Sprintf("r:'%v' w:'%v'", n.RpAce, n.WpAce)
 	return
 }
 
@@ -100,12 +103,12 @@ func NewNetlist(name string) *Netlist {
 	return n
 }
 
-func New(prefix, mname, iname string) *Netlist {
+func New(prefix, mname, iname string, level int) *Netlist {
 	m := rtl.LoadModule(mname)
 
 	ace, aceid := m.Aceness()
 
-	// log.Printf("%s%s [%v]", prefix, iname, m)
+	// log.Printf("%s%s [%v] ACE:%v", prefix, iname, m, ace)
 
 	n := NewNetlist(iname)
 
@@ -117,8 +120,11 @@ func New(prefix, mname, iname string) *Netlist {
 		n.AddNode(p)
 
 		p.IsAce = ace
-		p.RpAce = AceTerms(aceid)
-		p.WpAce = AceTerms(aceid)
+
+		if ace {
+			p.RpAce.Set(aceid)
+			p.WpAce.Set(aceid)
+		}
 
 		// This list is needed only to look up the formal node at the time of
 		// netlist construction. It will not be saved to mongo, nor will it be
@@ -127,6 +133,7 @@ func New(prefix, mname, iname string) *Netlist {
 		n.Ports = append(n.Ports, nport)
 	}
 
+	// If this is an ACE module, no need to elaborate netlist within it.
 	if ace {
 		n.Save()
 		return n
@@ -179,7 +186,7 @@ func New(prefix, mname, iname string) *Netlist {
 				}
 			}
 		} else {
-			subnet := New(prefix+"|  ", inst.Type, iname+"/"+inst.Name)
+			subnet := New(prefix+"|  ", inst.Type, iname+"/"+inst.Name, level+1)
 			n.Subnets[fullname] = subnet
 
 			for _, c := range m.Conns[nname] {
@@ -217,6 +224,7 @@ func New(prefix, mname, iname string) *Netlist {
 	}
 
 	n.Save()
+	log.Printf("Done (%d) %q", level, mname)
 
 	return n
 }
