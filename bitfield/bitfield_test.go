@@ -96,9 +96,9 @@ func TestSet(t *testing.T) {
 
 		byt, _ := f.locate(testcase.pos)
 
-		if f.fields[byt] != testcase.exp_byte {
+		if f.Fields[byt] != testcase.exp_byte {
 			t.Errorf("Exepecting byte 0x%x for pos:%d. Got 0x%x", testcase.exp_byte,
-				testcase.pos, f.fields[byt])
+				testcase.pos, f.Fields[byt])
 		}
 	}
 }
@@ -121,7 +121,7 @@ func TestSetMultiple(t *testing.T) {
 		f.Set(testcase.pos...)
 		// }
 
-		word := uint16(f.fields[1])<<8 | uint16(f.fields[0])
+		word := uint16(f.Fields[1])<<8 | uint16(f.Fields[0])
 
 		if word != testcase.exp_word {
 			t.Errorf("Expecting 0x%x for %v. Got 0x%x", testcase.exp_word,
@@ -136,7 +136,7 @@ func TestUnset(t *testing.T) {
 		unsetpos []int
 		exp_word uint16
 	}{
-		{[]int{0, 1, 2, 8}, []int{1, 2},  0x101},
+		{[]int{0, 1, 2, 8}, []int{1, 2}, 0x101},
 		{[]int{0, 1, 2, 8, 15}, []int{8}, 0x8007},
 	}
 
@@ -147,7 +147,7 @@ func TestUnset(t *testing.T) {
 
 		f.Unset(testcase.unsetpos...)
 
-		word := uint16(f.fields[1])<<8 | uint16(f.fields[0])
+		word := uint16(f.Fields[1])<<8 | uint16(f.Fields[0])
 
 		if word != testcase.exp_word {
 			t.Errorf("Expecting 0x%x for set:%v and unset:%v. Got 0x%x",
@@ -184,6 +184,48 @@ func TestTest(t *testing.T) {
 			if testcase.positions[i] != p {
 				t.Errorf("Expecting pos %d to be set. Appears to be unset.")
 			}
+		}
+	}
+}
+
+func TestNoneSet(t *testing.T) {
+	for _, testcase := range []struct {
+		bits2set []int
+		exp      bool
+	}{
+		{[]int{}, true},
+		{[]int{0}, false},
+		{[]int{0, 1}, false},
+		{[]int{0, 8}, false},
+		{[]int{8}, false},
+	} {
+		f := New(20)
+
+		f.Set(testcase.bits2set...)
+
+		if f.NoneSet() != testcase.exp {
+			t.Errorf("Expecting NoneSet() to return %v when bits are set %v",
+				testcase.exp, testcase.bits2set)
+		}
+	}
+}
+
+func TestString(t *testing.T) {
+	for _, test := range []struct {
+		bits []int
+		exp string
+	} {
+		{[]int{0}, "010000"},
+		{[]int{1}, "020000"},
+		{[]int{1, 2}, "060000"},
+		{[]int{1, 2, 8}, "060100"},
+	} {
+		f := New(20)
+
+		f.Set(test.bits...)
+
+		if f.String() != test.exp {
+			t.Errorf("Expecting %q. Got %q", test.exp, f.String())
 		}
 	}
 }
