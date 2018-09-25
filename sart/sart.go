@@ -7,16 +7,16 @@ import (
 	"os"
 	"time"
 
-	"gopkg.in/mgo.v2"
-
 	"sart/netlist"
 	"sart/rtl"
+
+	"gopkg.in/mgo.v2"
 )
 
 func main() {
 	var cache, top, ace, logp, server string
 
-	var debug, nobuild bool
+	var debug, nobuild, nowalk bool
 
 	flag.StringVar(&cache, "cache", "", "name of cache from which to fetch module info.")
 	flag.StringVar(&top, "top", "", "name of topcell on which to run sart")
@@ -26,6 +26,7 @@ func main() {
 
 	flag.BoolVar(&debug, "debug", false, "enable debug mode")
 	flag.BoolVar(&nobuild, "nobuild", false, "use to skip netlist build step")
+	flag.BoolVar(&nowalk, "nowalk", false, "use to skip netlist walk steps")
 
 	flag.Parse()
 
@@ -64,14 +65,20 @@ func main() {
 	} else {
 		netlist.InitMgo(session, cache, true)
 
+		log.Println("Building netlist..")
+
 		start = time.Now()
 		// netlist.New("", top, top)
-		nl := netlist.New("", top, top)
+		nl := netlist.New("", top, top, 0)
 		log.Println(nl)
 
 		netlist.DoneMgo()
 		netlist.WaitMgo()
 		log.Println("Netlist built. Elapsed:", time.Since(start))
+	}
+
+	if nowalk {
+		return
 	}
 
 	start = time.Now()
@@ -81,8 +88,13 @@ func main() {
 	log.Println(n)
 
 	log.Println("Starting walks..")
-	changed1 := n.Walk()
-	log.Println(changed1)
+	changed := n.Walk()
+	log.Println(changed)
+
+	for changed > 0 {
+		changed = n.Walk()
+		log.Println(changed)
+	}
 
 	n.Stats("")
 }
