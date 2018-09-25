@@ -101,7 +101,9 @@ func main() {
 		log.Println("Netlist built. Elapsed:", time.Since(start))
 	}
 
+	start = time.Now()
 	netlist.MarkAceNodes(acestructs)
+	log.Println("ACE nodes marked. Elapsed", time.Since(start))
 
 	// Stop here if nowalk is specified ////////////////////////////////////////
 
@@ -129,6 +131,12 @@ func main() {
 		changed = n.Walk()
 		log.Println(changed)
 	}
+
+	////////////////////////////////////////////////////////////////////////////
+
+	log.Println("Updating nodes..")
+	n.Update()
+	return
 
 	// Print stats and quit ////////////////////////////////////////////////////
 

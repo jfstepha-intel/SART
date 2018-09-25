@@ -104,35 +104,6 @@ func dropCollection(coll string) {
 	}
 }
 
-func (n *Netlist) Save() {
-	for _, node := range n.Nodes {
-		jobs <- insertjob{nodecoll, node}
-	}
-
-	// Links is a map of right-nodes indexed using the fullname of the
-	// left-node. It is sufficient to push just the fullname of the rnode into
-	// mongo as during retrieval, the right-node-fullname can be used to locate
-	// the node which should already have been loaded.
-	for lfullname, rnodes := range n.Links {
-		for _, rnode := range rnodes {
-			doc := bson.M{
-				"module":    n.Name,
-				"lfullname": lfullname,
-				"rfullname": rnode.Fullname(),
-			}
-			jobs <- insertjob{linkcoll, doc}
-		}
-	}
-
-	for _, subnet := range n.Subnets {
-		doc := bson.M{
-			"module": n.Name,
-			"name":   subnet.Name,
-		}
-		jobs <- insertjob{snetcoll, doc}
-	}
-}
-
 func MarkAceNodes(acestructs []ace.AceStruct) {
 	s := mgosession.Copy()
 	c := s.DB(db).C(nodecoll)
@@ -170,7 +141,53 @@ func MarkAceNodes(acestructs []ace.AceStruct) {
 		}
 		log.Printf("(%d/%d) Marked %d nodes ACE with regex %q", i+1, maxace, ci.Updated, s.Regex)
 	}
-	log.Println("Done marking ACE nodes.")
+}
+
+func (n *Netlist) Save() {
+	for _, node := range n.Nodes {
+		jobs <- insertjob{nodecoll, node}
+	}
+
+	// Links is a map of right-nodes indexed using the fullname of the
+	// left-node. It is sufficient to push just the fullname of the rnode into
+	// mongo as during retrieval, the right-node-fullname can be used to locate
+	// the node which should already have been loaded.
+	for lfullname, rnodes := range n.Links {
+		for _, rnode := range rnodes {
+			doc := bson.M{
+				"module":    n.Name,
+				"lfullname": lfullname,
+				"rfullname": rnode.Fullname(),
+			}
+			jobs <- insertjob{linkcoll, doc}
+		}
+	}
+
+	for _, subnet := range n.Subnets {
+		doc := bson.M{
+			"module": n.Name,
+			"name":   subnet.Name,
+		}
+		jobs <- insertjob{snetcoll, doc}
+	}
+}
+
+func (n *Netlist) Update() {
+	s := mgosession.Copy()
+	c := s.DB(db).C(nodecoll)
+
+	for _, node := range n.Nodes {
+		sel := bson.M{"module": node.Parent, "name": node.Name}
+		err := c.Update(sel, node)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Println("Updated", node)
+	}
+
+	for _, subnet := range n.Subnets {
+		subnet.Update()
+	}
 }
 
 func (n *Netlist) Load() {
