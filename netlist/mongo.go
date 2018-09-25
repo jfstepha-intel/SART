@@ -55,6 +55,30 @@ func WaitMgo() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+var updateJobs chan *Node
+var updateWg sync.WaitGroup
+
+func updateWorker() {
+	s := mgosession.Copy()
+	c := s.DB(db).C(nodecoll)
+
+	for node := range updateJobs {
+		sel := bson.M{"module": node.Parent, "name": node.Name}
+		err := c.Update(sel, node)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	updateWg.Done()
+}
+
+func UpdateWait() {
+	close(updateJobs)
+	updateWg.Wait()
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 func InitMgo(s *mgo.Session, cname string, drop bool) {
 	mgosession = s.Copy()
 
@@ -93,6 +117,12 @@ func InitMgo(s *mgo.Session, cname string, drop bool) {
 	for i := 0; i < MaxMgoThreads; i++ {
 		wg.Add(1)
 		go worker()
+	}
+
+	updateJobs = make(chan *Node, 100)
+	for i := 0; i < MaxMgoThreads; i++ {
+		updateWg.Add(1)
+		go updateWorker()
 	}
 }
 
@@ -173,16 +203,8 @@ func (n *Netlist) Save() {
 }
 
 func (n *Netlist) Update() {
-	s := mgosession.Copy()
-	c := s.DB(db).C(nodecoll)
-
 	for _, node := range n.Nodes {
-		sel := bson.M{"module": node.Parent, "name": node.Name}
-		err := c.Update(sel, node)
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Println("Updated", node)
+		updateJobs <- node
 	}
 
 	for _, subnet := range n.Subnets {

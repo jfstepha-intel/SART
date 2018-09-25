@@ -125,17 +125,16 @@ func main() {
 
 	log.Println("Starting walks..")
 	changed := n.Walk()
-	log.Println(changed)
 
 	for changed > 0 {
 		changed = n.Walk()
-		log.Println(changed)
 	}
 
 	////////////////////////////////////////////////////////////////////////////
 
 	log.Println("Updating nodes..")
 	n.Update()
+	netlist.UpdateWait()
 	return
 
 	// Print stats and quit ////////////////////////////////////////////////////
