@@ -2,6 +2,8 @@ package netlist
 
 import (
 	"log"
+	"sart/ace"
+	"sart/bitfield"
 	"sync"
 
 	"gopkg.in/mgo.v2"
@@ -128,6 +130,28 @@ func (n *Netlist) Save() {
 			"name":   subnet.Name,
 		}
 		jobs <- insertjob{snetcoll, doc}
+	}
+}
+
+func MarkAceNodes(acestructs []ace.AceStruct) {
+	s := mgosession.Copy()
+	c := s.DB(db).C(nodecoll)
+
+	log.Println("Marking Ace nodes")
+
+	maxace := len(acestructs)
+
+	for i, s := range acestructs {
+		rpbf := bitfield.New(maxace)
+		rpbf.Set(i)
+		sel := bson.M{"module": bson.RegEx{s.Regex, ""}}
+		upd := bson.M{"$set": bson.M{"rpace": rpbf, "isace": true}}
+
+		ci, err := c.UpdateAll(sel, upd)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Println(ci)
 	}
 }
 

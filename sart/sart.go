@@ -101,6 +101,8 @@ func main() {
 		log.Println("Netlist built. Elapsed:", time.Since(start))
 	}
 
+	netlist.MarkAceNodes(acestructs)
+
 	// Stop here if nowalk is specified ////////////////////////////////////////
 
 	if nowalk {
