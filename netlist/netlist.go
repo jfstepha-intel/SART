@@ -21,34 +21,35 @@ type Node struct {
 	IsSeqn bool
 	IsWire bool
 	IsAce  bool
+	Walked bool
 	RpAce  *bitfield.BitField
 	WpAce  *bitfield.BitField
 }
 
-func NewNode(parent, name, typ string) *Node {
+func NewNode(parent, name, typ string, bfsize int) *Node {
 	return &Node{
 		Parent: parent,
 		Name:   name,
 		Type:   typ,
-		RpAce:  bitfield.New(rtl.MaxAce()),
-		WpAce:  bitfield.New(rtl.MaxAce()),
+		RpAce:  bitfield.New(bfsize),
+		WpAce:  bitfield.New(bfsize),
 	}
 }
 
-func NewPortNode(parent, name, typ string) *Node {
-	p := NewNode(parent, name, typ)
+func NewPortNode(parent, name, typ string, bfsize int) *Node {
+	p := NewNode(parent, name, typ, bfsize)
 	p.IsPort = true
 	return p
 }
 
-func NewPrimNode(parent, name, typ string) *Node {
-	p := NewNode(parent, name, typ)
+func NewPrimNode(parent, name, typ string, bfsize int) *Node {
+	p := NewNode(parent, name, typ, bfsize)
 	p.IsPrim = true
 	return p
 }
 
-func NewWireNode(parent, name string) *Node {
-	w := NewNode(parent, name, "WIRE")
+func NewWireNode(parent, name string, bfsize int) *Node {
+	w := NewNode(parent, name, "WIRE", bfsize)
 	w.IsWire = true
 	return w
 }
@@ -103,7 +104,7 @@ func NewNetlist(name string) *Netlist {
 	return n
 }
 
-func New(prefix, mname, iname string, level int) *Netlist {
+func New(prefix, mname, iname string, bfsize, level int) *Netlist {
 	m := rtl.LoadModule(mname)
 
 	ace, aceid := m.Aceness()
@@ -116,7 +117,7 @@ func New(prefix, mname, iname string, level int) *Netlist {
 	for pos, port := range m.OrderedPorts() {
 		pname := port.Name
 
-		p := NewPortNode(iname, pname, port.Type)
+		p := NewPortNode(iname, pname, port.Type, bfsize)
 		n.AddNode(p)
 
 		p.IsAce = ace
@@ -143,7 +144,7 @@ func New(prefix, mname, iname string, level int) *Netlist {
 	// If a name has not already been encountered as a port, add it as a wire.
 	for _, conns := range m.Conns {
 		for _, conn := range conns {
-			w := NewWireNode(iname, conn.Actual)
+			w := NewWireNode(iname, conn.Actual, bfsize)
 			n.AddNode(w)
 		}
 	}
@@ -155,7 +156,7 @@ func New(prefix, mname, iname string, level int) *Netlist {
 		// log.Printf("Inst:%q Type:%s Prim:%v", nname, inst.Type, inst.IsPrim)
 		fullname := iname + "/" + nname
 		if inst.IsPrim {
-			prim := NewPrimNode(iname, nname, inst.Type)
+			prim := NewPrimNode(iname, nname, inst.Type, bfsize)
 			n.AddNode(prim)
 
 			// Update whether or not this node is a sequential
@@ -186,7 +187,7 @@ func New(prefix, mname, iname string, level int) *Netlist {
 				}
 			}
 		} else {
-			subnet := New(prefix+"|  ", inst.Type, iname+"/"+inst.Name, level+1)
+			subnet := New(prefix+"|  ", inst.Type, iname+"/"+inst.Name, bfsize, level+1)
 			n.Subnets[fullname] = subnet
 
 			for _, c := range m.Conns[nname] {
