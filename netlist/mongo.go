@@ -143,8 +143,20 @@ func MarkAceNodes(acestructs []ace.AceStruct) {
 	log.Println("Reseting Ace info..")
 
 	bf := bitfield.New(maxace)
-	sel := bson.M{"isace": true}
-	upd := bson.M{"$set": bson.M{"isace": false, "rpace": bf, "wpace": bf}}
+	sel := bson.M{ // Select if either isace or walked is true
+		"$or": []bson.M{
+			bson.M{"isace": true},
+			bson.M{"walked": true},
+		},
+	}
+	upd := bson.M{ // Update these fields
+		"$set": bson.M{
+			"isace":  false,
+			"walked": false,
+			"rpace":  bf,
+			"wpace":  bf,
+		},
+	}
 
 	ci, err := c.UpdateAll(sel, upd)
 	if err != nil {
@@ -204,7 +216,9 @@ func (n *Netlist) Save() {
 
 func (n *Netlist) Update() {
 	for _, node := range n.Nodes {
-		updateJobs <- node
+		if !node.RpAce.NoneSet() && !node.WpAce.NoneSet() {
+			updateJobs <- node
+		}
 	}
 
 	for _, subnet := range n.Subnets {
