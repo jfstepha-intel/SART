@@ -12,11 +12,25 @@ func (n *Node) AddWpAce(a *Node) {
 	n.WpAce.SetBitsOf(*a.WpAce)
 }
 
+func (n *Netlist) ResetWalked() {
+	for _, node := range n.Nodes {
+        node.Walked = false
+	}
+
+	for _, subnet := range n.Subnets {
+		subnet.ResetWalked()
+	}
+}
+
 func (n *Netlist) Walk() (changed int) {
+	n.ResetWalked()
 	changed += n.WalkDn("")
-	log.Println("Down walk changed", changed, "nodes")
+	log.Println("Dn walk changed", changed, "nodes")
+
+	n.ResetWalked()
 	changed += n.WalkUp("")
 	log.Println("Up walk changed", changed, "nodes")
+
 	return
 }
 
