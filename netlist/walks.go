@@ -104,6 +104,11 @@ func (n *Netlist) WalkUp(prefix string) (changed int) {
 }
 
 func (n *Netlist) PropDn(prefix string, node *Node, ace *Node) (changed int) {
+	if node.Walked {
+		return
+	}
+	node.Walked = true
+
 	// log.Printf("%sMarking %s with %s", prefix, node, ace)
 	prev := node.RpAce.String()
 	node.AddRpAce(ace)
@@ -130,6 +135,11 @@ func (n *Netlist) PropDn(prefix string, node *Node, ace *Node) (changed int) {
 }
 
 func (n *Netlist) PropUp(prefix string, node *Node, ace *Node) (changed int) {
+	if node.Walked {
+		return
+	}
+	node.Walked = true
+
 	// log.Printf("%sPropUp: Marking %s with %s", prefix, node, ace)
 	prev := node.WpAce.String()
 	node.AddWpAce(ace)
