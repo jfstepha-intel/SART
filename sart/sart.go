@@ -17,7 +17,7 @@ import (
 func main() {
 	var cache, top, acepath, logp, server string
 
-	var debug, nobuild, nowalk bool
+	var debug, nobuild, nowalk, nomark bool
 
 	// Command line switches ///////////////////////////////////////////////////
 
@@ -30,6 +30,7 @@ func main() {
 	flag.BoolVar(&debug, "debug", false, "enable debug mode")
 	flag.BoolVar(&nobuild, "nobuild", false, "use to skip netlist build step")
 	flag.BoolVar(&nowalk, "nowalk", false, "use to skip netlist walk steps")
+	flag.BoolVar(&nomark, "nomark", false, "use to skip marking ACE nodes")
 
 	flag.Parse()
 
@@ -93,7 +94,7 @@ func main() {
 		log.Println("Building netlist..")
 
 		start = time.Now()
-		nl := netlist.New("", top, top, 0)
+		nl := netlist.New("", top, top, len(acestructs), 0)
 		log.Println(nl)
 
 		netlist.DoneMgo()
@@ -101,9 +102,11 @@ func main() {
 		log.Println("Netlist built. Elapsed:", time.Since(start))
 	}
 
-	start = time.Now()
-	netlist.MarkAceNodes(acestructs)
-	log.Println("ACE nodes marked. Elapsed", time.Since(start))
+	if !nomark {
+		start = time.Now()
+		netlist.MarkAceNodes(acestructs)
+		log.Println("ACE nodes marked. Elapsed", time.Since(start))
+	}
 
 	// Stop here if nowalk is specified ////////////////////////////////////////
 
@@ -124,17 +127,21 @@ func main() {
 	// Start walks /////////////////////////////////////////////////////////////
 
 	log.Println("Starting walks..")
+	start = time.Now()
 	changed := n.Walk()
 
 	for changed > 0 {
 		changed = n.Walk()
 	}
+	log.Println("Walks complete. Elapsed:", time.Since(start))
 
-	////////////////////////////////////////////////////////////////////////////
+	// Update nodes with latest ACE info ///////////////////////////////////////
 
 	log.Println("Updating nodes..")
+	start = time.Now()
 	n.Update()
 	netlist.UpdateWait()
+	log.Println("Netlist updated. Elapsed:", time.Since(start))
 	return
 
 	// Print stats and quit ////////////////////////////////////////////////////
