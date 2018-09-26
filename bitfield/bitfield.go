@@ -12,7 +12,7 @@ type BitField struct {
 func New(size int) *BitField {
 	// Bit field of size 0 is meaningless. Return nil.
 	if size == 0 {
-		return nil
+		panic("seeking a zero-size bitfield")
 	}
 
 	// 8 bits per byte.
