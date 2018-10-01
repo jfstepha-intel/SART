@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"regexp"
 	"sart/rtl"
 	"strings"
+	"time"
 
 	mgo "gopkg.in/mgo.v2"
 )
@@ -184,17 +186,34 @@ func Count(m *rtl.Module, prefix string) {
 var SEQ, REG, COM io.Writer
 
 func main() {
-	var server, cache, top string
+	var server, cache, top, bbpath string
 
 	flag.StringVar(&top, "top", "", "name of topcell to report")
 	flag.StringVar(&cache, "cache", "", "name of mongo cache to retrieve module info from")
 	flag.StringVar(&server, "server", "localhost", "name of mongo server (optional)")
+	flag.StringVar(&bbpath, "bb", "", "name of file with list of names to blackbox")
 
 	flag.Parse()
 
 	if top == "" || cache == "" {
 		flag.PrintDefaults()
 		log.Fatal("Insufficient arguments.")
+	}
+
+	if bbpath != "" {
+		file, err := os.Open(bbpath)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		scanner := bufio.NewScanner(file)
+
+		for scanner.Scan() {
+			line := scanner.Text()
+			if line != "" {
+				blackboxes.Add(line)
+			}
+		}
 	}
 
 	session, err := mgo.Dial(server)
@@ -216,7 +235,9 @@ func main() {
 
 	LUT = make(ModuleTable)
 
+	start := time.Now()
 	Count(m, "")
+	log.Println("Finished counting. Time elapsed:", time.Since(start))
 
 	SEQ, err = os.Create("seq.csv")
 	REG, err = os.Create("reg.csv")
