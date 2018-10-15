@@ -1,5 +1,8 @@
 *.txt
 *.csv
+*.tgz
 
 *.html
 *.out
+*.bb
+*.json

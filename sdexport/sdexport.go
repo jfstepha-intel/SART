@@ -140,42 +140,29 @@ func Count(m *rtl.Module, prefix string) {
 	for _, inst := range m.Insts {
 		// log.Printf("%s%s %s", prefix, inst.Type, inst.Name)
 
-		itype := strings.TrimPrefix(inst.Type, uprefix)
-
-		switch {
-		// case dfxre.MatchString(itype):
-		// 	continue
-		case strings.HasPrefix(itype, "m74"):
+		switch MatchType(inst.Type) {
+		case "EBB":
 			x.Embbs[inst.Type]++
-			continue
-		case strings.HasPrefix(itype, "fa0f"):
-			x.Flops[inst.Type]++
-			continue
-		case strings.HasPrefix(itype, "fa0l"):
-			x.Latch[inst.Type]++
-			continue
-		case strings.HasPrefix(itype, "fa0"):
-			x.Combs[inst.Type]++
-			continue
-		case strings.HasPrefix(itype, "fa7m"):
+
+		case "Reg":
 			x.Regfs[inst.Type]++
-			continue
-		case strings.HasPrefix(itype, "fa7f"):
+
+		case "Flop":
 			x.Flops[inst.Type]++
-			continue
-		case strings.HasPrefix(itype, "fa7l"):
+
+		case "Latch":
 			x.Latch[inst.Type]++
-			continue
-		case strings.HasPrefix(itype, "fa7"):
+
+		case "Comb":
 			x.Combs[inst.Type]++
-			continue
-		case primparents.Has(inst.Type):
-			x.Combs[inst.Type]++
-			continue
-		default:
+
+		case "Unknown":
 			i := rtl.NewModule(inst.Type)
 			i.Load()
 			Count(i, prefix+"|   ")
+
+		default:
+			log.Fatal("Function MatchType returned unknown type")
 		}
 	}
 
@@ -186,12 +173,13 @@ func Count(m *rtl.Module, prefix string) {
 var SEQ, REG, COM io.Writer
 
 func main() {
-	var server, cache, top, bbpath string
+	var server, cache, top, bbpath, tspec string
 
 	flag.StringVar(&top, "top", "", "name of topcell to report")
 	flag.StringVar(&cache, "cache", "", "name of mongo cache to retrieve module info from")
 	flag.StringVar(&server, "server", "localhost", "name of mongo server (optional)")
 	flag.StringVar(&bbpath, "bb", "", "name of file with list of names to blackbox")
+	flag.StringVar(&tspec, "tspec", "", "path to json file with type specifications")
 
 	flag.Parse()
 
@@ -214,6 +202,13 @@ func main() {
 				blackboxes.Add(line)
 			}
 		}
+	}
+
+	if tspec == "" {
+		flag.PrintDefaults()
+		log.Fatal("-tspec is required")
+	} else {
+		LoadSpec(tspec)
 	}
 
 	session, err := mgo.Dial(server)
@@ -239,9 +234,9 @@ func main() {
 	Count(m, "")
 	log.Println("Finished counting. Time elapsed:", time.Since(start))
 
-	SEQ, err = os.Create("seq.csv")
-	REG, err = os.Create("reg.csv")
-	COM, err = os.Create("com.csv")
+	SEQ, err = os.Create(cache + "_seq.csv")
+	REG, err = os.Create(cache + "_reg.csv")
+	COM, err = os.Create(cache + "_com.csv")
 
 	log.Println("Report")
 	LUT.Print(top, "")
