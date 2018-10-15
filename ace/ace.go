@@ -14,6 +14,7 @@ func init() {
 }
 
 type AceStruct struct {
+	Field string
 	Regex string
 	Rpavf float64
 	Wpavf float64
@@ -38,11 +39,12 @@ func Load(reader io.Reader) (acestructs []AceStruct) {
 
 		// Split by comma and expect to find exactly 3 parts
 		parts := strings.Split(line, ",")
-		if len(parts) != 3 {
-			log.Fatal("Expecting 3 parts in ACE struct", line, parts)
+		if len(parts) != 4 {
+			log.Fatal("Expecting 4 parts in ACE struct", line, parts)
 		}
 
-		regex := strings.TrimSpace(parts[0])
+		field := strings.TrimSpace(parts[0])
+		regex := strings.TrimSpace(parts[1])
 
 		// Do a basic check to see that the regex is valid -- i.e. at least
 		// compilable by Go
@@ -52,17 +54,17 @@ func Load(reader io.Reader) (acestructs []AceStruct) {
 		}
 
 		// Convert the number strings into float type before passing on
-		rpace, err := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
+		rpace, err := strconv.ParseFloat(strings.TrimSpace(parts[2]), 64)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		wpace, err := strconv.ParseFloat(strings.TrimSpace(parts[2]), 64)
+		wpace, err := strconv.ParseFloat(strings.TrimSpace(parts[3]), 64)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		acestruct := AceStruct{regex, rpace, wpace}
+		acestruct := AceStruct{field, regex, rpace, wpace}
 		acestructs = append(acestructs, acestruct)
 	}
 

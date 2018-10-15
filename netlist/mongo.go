@@ -174,7 +174,7 @@ func MarkAceNodes(acestructs []ace.AceStruct) {
 		rpbf.Set(i)
 		wpbf.Set(i)
 
-		sel := bson.M{"module": bson.RegEx{s.Regex, ""}, "type": "OUTPUT"}
+		sel := bson.M{s.Field: bson.RegEx{s.Regex, ""}}
 		upd := bson.M{"$set": bson.M{"isace": true, "rpace": rpbf, "wpace": wpbf}}
 
 		ci, err := c.UpdateAll(sel, upd)
