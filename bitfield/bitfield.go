@@ -20,7 +20,7 @@ func New(size int) *BitField {
 
 	f := &BitField{
 		Fields: make([]byte, numbytes, numbytes),
-	}
+	} 
 
 	return f
 }
@@ -86,7 +86,7 @@ func (f BitField) Test() (setpositions []int) {
 	return
 }
 
-func (f BitField) NoneSet() bool {
+func (f BitField) AllUnset() bool {
 	var acc byte
 	for _, b := range f.Fields {
 		acc |= b

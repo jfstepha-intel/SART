@@ -9,12 +9,12 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestZero(t *testing.T) {
-	f := New(0)
-	if f != nil {
-		t.Errorf("Expecting nil pointer to BitField when zero size BitField is requested")
-	}
-}
+// func TestZero(t *testing.T) {
+// 	f := New(0)
+// 	if f != nil {
+// 		t.Errorf("Expecting nil pointer to BitField when zero size BitField is requested")
+// 	}
+// }
 
 func TestSize(t *testing.T) {
 	testcases := []struct {
@@ -188,7 +188,7 @@ func TestTest(t *testing.T) {
 	}
 }
 
-func TestNoneSet(t *testing.T) {
+func TestAllUnset(t *testing.T) {
 	for _, testcase := range []struct {
 		bits2set []int
 		exp      bool
@@ -203,8 +203,8 @@ func TestNoneSet(t *testing.T) {
 
 		f.Set(testcase.bits2set...)
 
-		if f.NoneSet() != testcase.exp {
-			t.Errorf("Expecting NoneSet() to return %v when bits are set %v",
+		if f.AllUnset() != testcase.exp {
+			t.Errorf("Expecting AllUnset() to return %v when bits are set %v",
 				testcase.exp, testcase.bits2set)
 		}
 	}

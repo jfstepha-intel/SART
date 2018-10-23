@@ -216,7 +216,7 @@ func (n *Netlist) Save() {
 
 func (n *Netlist) Update() {
 	for _, node := range n.Nodes {
-		if !node.RpAce.NoneSet() && !node.WpAce.NoneSet() {
+		if !node.RpAce.AllUnset() && !node.WpAce.AllUnset() {
 			updateJobs <- node
 		}
 	}
