@@ -40,7 +40,7 @@ func (t ItemType) String() string {
 	case Ends:
 		return ".ENDS"
 	}
-	return fmt.Sprintf("%v", t)
+	return fmt.Sprintf("%d", t)
 }
 
 type Item struct {
