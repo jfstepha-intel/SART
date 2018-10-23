@@ -87,6 +87,13 @@ func prmpUpdateWorker(wg *sync.WaitGroup, jobs <-chan string) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		_, err = inst.UpdateAll(
+			bson.M{"type": job}, // Selector
+			bson.M{"$set": bson.M{"isprim": true}},
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	wg.Done()
 }
@@ -353,4 +360,27 @@ func main() {
 	close(connTypeUpdateJobs)
 	connTypeUpdateWg.Wait()
 	log.Printf("Done. Updated %d outputs and %d inouts", outcount, inocount)
+
+	sess := session.Copy()
+	conn := sess.DB("sart").C(cache + "_conns")
+
+	xtors := []string{
+		"n",
+		"p",
+		"nsvt",
+		"psvt",
+		"nhvt",
+		"phvt",
+	}
+
+	for _, xtor := range xtors {
+		sel := bson.M{"itype": xtor, "pos": 0}
+		set := bson.M{"$set": bson.M{"type": "OUTPUT"}}
+
+		ci, err := conn.UpdateAll(sel, set)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("Updated %d outputs in prim %q", ci.Updated, xtor)
+	}
 }
