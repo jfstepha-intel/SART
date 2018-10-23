@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log"
 	"sart/ace"
+	"sart/histogram"
 	"sart/queue"
+	"strings"
 )
 
 func (n *Node) AddRpAce(a *Node) {
@@ -151,38 +153,38 @@ func (netlist *Netlist) PropDn(prefix string, node *Node, ace *Node) (changed in
 
 		n := q.Pop().(*Node)
 
-        // If this node is ACE, propagation stops here.
-        if n.IsAce {
-            continue
-        }
+		// If this node is ACE, propagation stops here.
+		if n.IsAce {
+			continue
+		}
 
 		prev := n.RpAce.String()
 		n.AddRpAce(ace)
 		next := n.RpAce.String()
 
-        // If the value is unchanged after update it means that this ACE value
-        // was already propagated down through this node. Can terminate
-        // propagation here.  This logic should prevent cycles from causing
-        // runaways.
+		// If the value is unchanged after update it means that this ACE value
+		// was already propagated down through this node. Can terminate
+		// propagation here.  This logic should prevent cycles from causing
+		// runaways.
 		if prev == next {
 			continue
 		}
 
 		changed++
 
-        // If we've reached a port, we can terminate. This is because if we are
-        // within a subnet, the parent will continue the walk from the subnet
-        // outputs. If this is a parent this would be the end of the walk
-        // anyway.
+		// If we've reached a port, we can terminate. This is because if we are
+		// within a subnet, the parent will continue the walk from the subnet
+		// outputs. If this is a parent this would be the end of the walk
+		// anyway.
 		if n.IsPort {
 			continue
 		}
 
-        // Every node that this node feeds into needs to propagate down this
-        // ACE node's values.
-	    for _, rnode := range netlist.Links[n.Fullname()] {
-            q.Push(rnode)
-	    }
+		// Every node that this node feeds into needs to propagate down this
+		// ACE node's values.
+		for _, rnode := range netlist.Links[n.Fullname()] {
+			q.Push(rnode)
+		}
 	}
 
 	return
@@ -220,23 +222,33 @@ func (n *Netlist) PropUp(prefix string, node *Node, ace *Node) (changed int) {
 }
 
 type NetStats struct {
-	Nodes  int
-	Ace    int
-	Seqn   int
+	Nodes int
+	Ace   int
+	Seqn  int
+	Hist  histogram.Histogram
+}
+
+func NewNetStats() NetStats {
+	s := NetStats{
+		Hist: histogram.New(),
+	}
+	return s
 }
 
 func (s NetStats) String() (str string) {
-	return fmt.Sprintf("[Nodes:%d] [ACE:%d] [Seqn:%d]", s.Nodes,
-		s.Ace, s.Seqn)
+	return fmt.Sprintf("[Nodes:%d] [ACE:%d] [Seqn:%d]\n%v", s.Nodes,
+		s.Ace, s.Seqn, s.Hist)
 }
 
 func (s *NetStats) Plus(addend NetStats) {
 	s.Nodes += addend.Nodes
 	s.Ace += addend.Ace
 	s.Seqn += addend.Seqn
+	s.Hist.Merge(addend.Hist)
 }
 
 func (n *Netlist) Stats(acestructs []ace.AceStruct) (stats NetStats) {
+	stats = NewNetStats()
 
 	stats.Nodes = len(n.Nodes)
 
@@ -249,9 +261,16 @@ func (n *Netlist) Stats(acestructs []ace.AceStruct) (stats NetStats) {
 			stats.Seqn++
 			eqn := ""
 			for _, pos := range node.RpAce.Test() {
-				eqn += fmt.Sprintf("%0.2f + ", acestructs[pos].Rpavf)
+				eqn += fmt.Sprintf("%0.2f+", acestructs[pos].Rpavf)
 			}
-			log.Println(node, eqn)
+			eqn = strings.TrimSuffix(eqn, "+")
+
+			// If no terms reached this node, it is a 1.0 sequential
+			if eqn == "" {
+				eqn = "1.0"
+			}
+
+			stats.Hist.Add(eqn)
 		}
 	}
 
