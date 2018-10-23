@@ -62,6 +62,15 @@ func (m Module) Print(prefix string) {
 			widths[device] += width
 		}
 	}
+
+	// Add up any transistors at this level.
+	for _, prop := range props[m.Name] {
+		// log.Println(prop)
+		device := prop.Itype
+		width := prop.Fval
+		widths[device] += width
+	}
+
 	for device, width := range widths {
 		fmt.Fprintf(COM, "%s/%s,%s,%0.3f\n", prefix, sname, device, width)
 	}
