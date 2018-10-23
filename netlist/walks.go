@@ -1,7 +1,10 @@
 package netlist
 
 import (
+	"fmt"
 	"log"
+	"sart/ace"
+	"sart/queue"
 )
 
 func (n *Node) AddRpAce(a *Node) {
@@ -14,7 +17,7 @@ func (n *Node) AddWpAce(a *Node) {
 
 func (n *Netlist) ResetWalked() {
 	for _, node := range n.Nodes {
-        node.Walked = false
+		node.Walked = false
 	}
 
 	for _, subnet := range n.Subnets {
@@ -27,9 +30,9 @@ func (n *Netlist) Walk() (changed int) {
 	changed += n.WalkDn("")
 	log.Println("Dn walk changed", changed, "nodes")
 
-	n.ResetWalked()
-	changed += n.WalkUp("")
-	log.Println("Up walk changed", changed, "nodes")
+	// n.ResetWalked()
+	// changed += n.WalkUp("")
+	// log.Println("Up walk changed", changed, "nodes")
 
 	return
 }
@@ -38,38 +41,57 @@ func (n *Netlist) WalkDn(prefix string) (changed int) {
 	// log.Printf("%s Walking down [NETL:%s] ACE:%v", prefix, n.Name, n.IsAce)
 	prefix += "|   "
 
-	// log.Printf("%sPropagating inputs", prefix)
-	for _, input := range n.Inputs {
-		if !input.RpAce.NoneSet() {
-			for _, rnode := range n.Links[input.Fullname()] {
-				changed += n.PropDn(prefix+"|   ", rnode, input)
+	for _, node := range n.Nodes {
+		if node.IsAce {
+			for _, rnode := range n.Links[node.Fullname()] {
+				changed += n.PropDn(prefix+"|   ", rnode, node)
 			}
+			// log.Printf("ACE node updated %d nodes %v", changed, node)
 		}
 	}
 
+	//// // log.Printf("%sPropagating inputs", prefix)
+	//// for _, input := range n.Inputs {
+	//// 	if !input.RpAce.AllUnset() && !input.IsAce {
+	//// 		for _, rnode := range n.Links[input.Fullname()] {
+	//// 			changed += n.PropDn(prefix+"|   ", rnode, input)
+	//// 		}
+	//// 	}
+	//// }
+
 	for _, subnet := range n.Subnets {
-		// log.Printf("%sPropagating subnet %s", prefix, subnet.Name)
-		if subnet.IsAce {
-			for _, ace := range subnet.Outputs {
-				if !ace.IsAce {
-					log.Fatal("error")
-				}
+		changed += subnet.WalkDn(prefix)
 
-				for _, rnode := range n.Links[ace.Fullname()] {
-					changed += n.PropDn(prefix+"|   ", rnode, ace)
-				}
-			}
-		} else {
-			changed += subnet.WalkDn(prefix)
-
-			for _, output := range subnet.Outputs {
-				if !output.RpAce.NoneSet() {
-					for _, rnode := range n.Links[output.Fullname()] {
-						changed += n.PropDn(prefix+"|   ", rnode, output)
-					}
+		for _, output := range subnet.Outputs {
+			if output.IsAce || !output.RpAce.AllUnset() {
+				for _, rnode := range n.Links[output.Fullname()] {
+					changed += n.PropDn(prefix+"|   ", rnode, output)
 				}
 			}
 		}
+
+		//// // log.Printf("%sPropagating subnet %s", prefix, subnet.Name)
+		//// if subnet.IsAce {
+		//// 	for _, ace := range subnet.Outputs {
+		//// 		if !ace.IsAce {
+		//// 			log.Fatal("error")
+		//// 		}
+
+		//// 		for _, rnode := range n.Links[ace.Fullname()] {
+		//// 			changed += n.PropDn(prefix+"|   ", rnode, ace)
+		//// 		}
+		//// 	}
+		//// } else {
+		//// 	changed += subnet.WalkDn(prefix)
+
+		//// 	for _, output := range subnet.Outputs {
+		//// 		if !output.RpAce.AllUnset() {
+		//// 			for _, rnode := range n.Links[output.Fullname()] {
+		//// 				changed += n.PropDn(prefix+"|   ", rnode, output)
+		//// 			}
+		//// 		}
+		//// 	}
+		//// }
 	}
 
 	return
@@ -81,7 +103,7 @@ func (n *Netlist) WalkUp(prefix string) (changed int) {
 
 	// log.Printf("%sPropagating outputs", prefix)
 	for _, output := range n.Outputs {
-		if !output.WpAce.NoneSet() {
+		if !output.WpAce.AllUnset() {
 			for _, lnode := range n.Links[output.Fullname()] {
 				changed += n.PropUp(prefix+"|   ", lnode, output)
 			}
@@ -105,7 +127,7 @@ func (n *Netlist) WalkUp(prefix string) (changed int) {
 			changed += subnet.WalkUp(prefix)
 
 			for _, input := range subnet.Inputs {
-				if !input.WpAce.NoneSet() {
+				if !input.WpAce.AllUnset() {
 					for _, lnode := range n.Links[input.Fullname()] {
 						changed += n.PropUp(prefix+"|   ", lnode, input)
 					}
@@ -117,32 +139,50 @@ func (n *Netlist) WalkUp(prefix string) (changed int) {
 	return
 }
 
-func (n *Netlist) PropDn(prefix string, node *Node, ace *Node) (changed int) {
-	if node.Walked {
-		return
-	}
-	node.Walked = true
-
-	// log.Printf("%sMarking %s with %s", prefix, node, ace)
-	prev := node.RpAce.String()
-	node.AddRpAce(ace)
-	next := node.RpAce.String()
-
-	if prev != next {
-		changed++
-	}
-
-	if node.IsPort {
-		// log.Printf("%swalk reached port %s", prefix, node)
+func (netlist *Netlist) PropDn(prefix string, node *Node, ace *Node) (changed int) {
+	if node.IsAce {
 		return
 	}
 
-	for _, rnode := range n.Links[node.Fullname()] {
-		if rnode.IsAce {
-			// log.Println("%sWalk reached ace %s", prefix, rnode)
+	q := queue.New()
+	q.Push(node)
+
+	for !q.Empty() {
+
+		n := q.Pop().(*Node)
+
+        // If this node is ACE, propagation stops here.
+        if n.IsAce {
+            continue
+        }
+
+		prev := n.RpAce.String()
+		n.AddRpAce(ace)
+		next := n.RpAce.String()
+
+        // If the value is unchanged after update it means that this ACE value
+        // was already propagated down through this node. Can terminate
+        // propagation here.  This logic should prevent cycles from causing
+        // runaways.
+		if prev == next {
 			continue
 		}
-		changed += n.PropDn(prefix+"|   ", rnode, ace)
+
+		changed++
+
+        // If we've reached a port, we can terminate. This is because if we are
+        // within a subnet, the parent will continue the walk from the subnet
+        // outputs. If this is a parent this would be the end of the walk
+        // anyway.
+		if n.IsPort {
+			continue
+		}
+
+        // Every node that this node feeds into needs to propagate down this
+        // ACE node's values.
+	    for _, rnode := range netlist.Links[n.Fullname()] {
+            q.Push(rnode)
+	    }
 	}
 
 	return
@@ -179,11 +219,45 @@ func (n *Netlist) PropUp(prefix string, node *Node, ace *Node) (changed int) {
 	return
 }
 
-func (n *Netlist) Stats(prefix string) {
+type NetStats struct {
+	Nodes  int
+	Ace    int
+	Seqn   int
+}
+
+func (s NetStats) String() (str string) {
+	return fmt.Sprintf("[Nodes:%d] [ACE:%d] [Seqn:%d]", s.Nodes,
+		s.Ace, s.Seqn)
+}
+
+func (s *NetStats) Plus(addend NetStats) {
+	s.Nodes += addend.Nodes
+	s.Ace += addend.Ace
+	s.Seqn += addend.Seqn
+}
+
+func (n *Netlist) Stats(acestructs []ace.AceStruct) (stats NetStats) {
+
+	stats.Nodes = len(n.Nodes)
+
 	for _, node := range n.Nodes {
-		log.Printf("%s%v", prefix, node)
+		if node.IsAce {
+			stats.Ace++
+		}
+
+		if node.IsSeqn {
+			stats.Seqn++
+			eqn := ""
+			for _, pos := range node.RpAce.Test() {
+				eqn += fmt.Sprintf("%0.2f + ", acestructs[pos].Rpavf)
+			}
+			log.Println(node, eqn)
+		}
 	}
-	// for _, subnet := range n.Subnets {
-	//     subnet.Stats(prefix+"|   ")
-	// }
+
+	for _, subnet := range n.Subnets {
+		stats.Plus(subnet.Stats(acestructs))
+	}
+
+	return
 }

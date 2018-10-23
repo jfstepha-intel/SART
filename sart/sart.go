@@ -142,9 +142,8 @@ func main() {
 	n.Update()
 	netlist.UpdateWait()
 	log.Println("Nodes updated. Elapsed:", time.Since(start))
-	return
 
 	// Print stats and quit ////////////////////////////////////////////////////
 
-	n.Stats("")
+	log.Println(n.Stats(acestructs))
 }
