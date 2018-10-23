@@ -103,7 +103,9 @@ func (p *parser) statements() {
 
 func (p *parser) global() {
 	p.expect(Global)
-	p.expect(Id)
+	for p.tokenis(Id) {
+		p.expect(Id)
+	}
 	p.expect(Newline)
 }
 
