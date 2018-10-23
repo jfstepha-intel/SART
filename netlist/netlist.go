@@ -107,9 +107,7 @@ func NewNetlist(name string) *Netlist {
 func New(prefix, mname, iname string, bfsize, level int) *Netlist {
 	m := rtl.LoadModule(mname)
 
-	ace, aceid := m.Aceness()
-
-	// log.Printf("%s%s [%v] ACE:%v", prefix, iname, m, ace)
+	// log.Printf("%s%s [%v] ACE:%v", prefix, iname, m)
 
 	n := NewNetlist(iname)
 
@@ -120,24 +118,11 @@ func New(prefix, mname, iname string, bfsize, level int) *Netlist {
 		p := NewPortNode(iname, pname, port.Type, bfsize)
 		n.AddNode(p)
 
-		p.IsAce = ace
-
-		if ace {
-			p.RpAce.Set(aceid)
-			p.WpAce.Set(aceid)
-		}
-
 		// This list is needed only to look up the formal node at the time of
 		// netlist construction. It will not be saved to mongo, nor will it be
 		// populated in a Load()-ed netlist.
 		nport := rtl.NewPort(iname, pname, pos)
 		n.Ports = append(n.Ports, nport)
-	}
-
-	// If this is an ACE module, no need to elaborate netlist within it.
-	if ace {
-		n.Save()
-		return n
 	}
 
 	// Go through all connections -- actual names of all instance connections.
