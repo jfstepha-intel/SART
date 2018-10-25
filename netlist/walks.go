@@ -247,7 +247,7 @@ func (s *NetStats) Plus(addend NetStats) {
 	s.Hist.Merge(addend.Hist)
 }
 
-func (n *Netlist) Stats(acestructs []ace.AceStruct) (stats NetStats) {
+func (n Netlist) Stats(acestructs []ace.AceStruct) (stats NetStats) {
 	stats = NewNetStats()
 
 	stats.Nodes = len(n.Nodes)
@@ -261,13 +261,13 @@ func (n *Netlist) Stats(acestructs []ace.AceStruct) (stats NetStats) {
 			stats.Seqn++
 			eqn := ""
 			for _, pos := range node.RpAce.Test() {
-				eqn += fmt.Sprintf("%0.2f+", acestructs[pos].Rpavf)
+				eqn += fmt.Sprintf("%0.4f+", acestructs[pos].Rpavf)
 			}
 			eqn = strings.TrimSuffix(eqn, "+")
 
 			// If no terms reached this node, it is a 1.0 sequential
 			if eqn == "" {
-				eqn = "1.0"
+				eqn = "1.0000"
 			}
 
 			stats.Hist.Add(eqn)

@@ -134,22 +134,26 @@ func dropCollection(coll string) {
 	}
 }
 
-func MarkAceNodes(acestructs []ace.AceStruct) {
+func MarkAceNodes(acestructs []ace.AceStruct) (reset, marked int) {
 	s := mgosession.Copy()
 	c := s.DB(db).C(nodecoll)
 
 	maxace := len(acestructs)
 
-	log.Println("Reseting Ace info..")
+	// Reset the ACE information of all nodes that had changed. ////////////////
 
 	bf := bitfield.New(maxace)
-	sel := bson.M{ // Select if either isace or walked is true
+	sel := bson.M{
+		// Select if read or write port ACE terms has a non-zero character
+		// because if a node was never marked with an ACE value during a walk,
+		// its ACE terms string will be all 0s.
 		"$or": []bson.M{
-			bson.M{"isace": true},
-			bson.M{"walked": true},
+			bson.M{"rpace": bson.RegEx{"[^0]", ""}},
+			bson.M{"wpace": bson.RegEx{"[^0]", ""}},
 		},
 	}
-	upd := bson.M{ // Update these fields
+	upd := bson.M{
+		// Update it with an empty bitfield of the required size.
 		"$set": bson.M{
 			"isace":  false,
 			"walked": false,
@@ -162,27 +166,40 @@ func MarkAceNodes(acestructs []ace.AceStruct) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Reset %d nodes.", ci.Updated)
+	reset = ci.Updated
 
-	////////////////////////////////////////////////////////////////////////////
+	// Mark ACE nodes //////////////////////////////////////////////////////////
 
-	log.Println("Marking Ace nodes..")
-
+	// The index of the ACE struct in the array will be the bit to set in the
+	// bitfield to indicate its contribution to the pAVF equation.
 	for i, s := range acestructs {
 		rpbf := bitfield.New(maxace)
 		wpbf := bitfield.New(maxace)
 		rpbf.Set(i)
 		wpbf.Set(i)
 
-		sel := bson.M{s.Field: bson.RegEx{s.Regex, ""}}
-		upd := bson.M{"$set": bson.M{"isace": true, "rpace": rpbf, "wpace": wpbf}}
+		sel := bson.M{
+			// The regular expression is applied to the specified field
+			s.Field: bson.RegEx{s.Regex, ""},
+		}
+		upd := bson.M{
+			"$set": bson.M{
+				"isace": true,
+				"rpace": rpbf,
+				"wpace": wpbf,
+			},
+		}
 
 		ci, err := c.UpdateAll(sel, upd)
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Printf("(%d/%d) Marked %d nodes ACE with regex %q", i+1, maxace, ci.Updated, s.Regex)
+		log.Printf("(%d/%d) Marked %d nodes ACE with regex %q", i+1, maxace,
+			ci.Updated, s.Regex)
+		marked += ci.Updated
 	}
+
+	return
 }
 
 func (n *Netlist) Save() {
@@ -214,16 +231,21 @@ func (n *Netlist) Save() {
 	}
 }
 
-func (n *Netlist) Update() {
+func (n *Netlist) Update() (count int) {
 	for _, node := range n.Nodes {
-		if !node.RpAce.AllUnset() && !node.WpAce.AllUnset() {
+		// If a node that is not ace has been touched by an ACE value, update
+		// to reflect this in mongo.
+		if !node.IsAce && (!node.RpAce.AllUnset() || !node.WpAce.AllUnset()) {
 			updateJobs <- node
+			count++
 		}
 	}
 
 	for _, subnet := range n.Subnets {
-		subnet.Update()
+		count += subnet.Update()
 	}
+
+	return
 }
 
 func (n *Netlist) Load() {
