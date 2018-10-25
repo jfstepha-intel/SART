@@ -1,6 +1,9 @@
 package bitfield
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestNew(t *testing.T) {
 	f := New(1)
@@ -213,8 +216,8 @@ func TestAllUnset(t *testing.T) {
 func TestString(t *testing.T) {
 	for _, test := range []struct {
 		bits []int
-		exp string
-	} {
+		exp  string
+	}{
 		{[]int{0}, "010000"},
 		{[]int{1}, "020000"},
 		{[]int{1, 2}, "060000"},
@@ -228,4 +231,22 @@ func TestString(t *testing.T) {
 			t.Errorf("Expecting %q. Got %q", test.exp, f.String())
 		}
 	}
+}
+
+func ExampleString() {
+	f := New(20)
+
+	f.Set(0)
+	fmt.Println(f)
+
+	f.Set(1)
+	fmt.Println(f)
+
+	f.Set(9)
+	fmt.Println(f)
+
+    // Output:
+    // 010000
+    // 030000
+    // 030200
 }

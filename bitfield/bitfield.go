@@ -3,6 +3,8 @@ package bitfield
 import (
 	"fmt"
 	"log"
+
+	"gopkg.in/mgo.v2/bson"
 )
 
 type BitField struct {
@@ -20,7 +22,7 @@ func New(size int) *BitField {
 
 	f := &BitField{
 		Fields: make([]byte, numbytes, numbytes),
-	} 
+	}
 
 	return f
 }
@@ -92,4 +94,27 @@ func (f BitField) AllUnset() bool {
 		acc |= b
 	}
 	return acc == 0
+}
+
+// GetBSON makes BitField implement bson.Getter
+func (f BitField) GetBSON() (interface{}, error) {
+    // We want to save the bitfield as a simple hexadecimal string
+	return f.String(), nil
+}
+
+// SetBSON makes BitField implement bson.Setter
+func (f *BitField) SetBSON(raw bson.Raw) error {
+	var str string
+    // We need to unmarshal the raw data into a string before it can be
+    // interpreted. It will unmarshal into a string because we encoded it as a
+    // string in the Getter - GetBSON.
+	err := raw.Unmarshal(&str)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Sscanf(str, "%x", &f.Fields) // Opposite of what BitField.String() does
+    if err != nil {
+        return err
+    }
+    return nil
 }
