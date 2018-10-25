@@ -17,7 +17,7 @@ import (
 func main() {
 	var cache, top, acepath, logp, server string
 
-	var debug, nobuild, nowalk, nomark bool
+	var debug, nobuild, nowalk bool
 
 	// Command line switches ///////////////////////////////////////////////////
 
@@ -30,7 +30,6 @@ func main() {
 	flag.BoolVar(&debug, "debug", false, "enable debug mode")
 	flag.BoolVar(&nobuild, "nobuild", false, "use to skip netlist build step")
 	flag.BoolVar(&nowalk, "nowalk", false, "use to skip netlist walk steps")
-	flag.BoolVar(&nomark, "nomark", false, "use to skip marking ACE nodes")
 
 	flag.Parse()
 
@@ -102,16 +101,19 @@ func main() {
 		log.Println("Netlist built. Elapsed:", time.Since(start))
 	}
 
-	if !nomark {
+	// By this point, the netlist has been built and saved to mongo. Next ACE
+	// nodes need to be marked before starting walks. This has to be done
+	// before loading the netlist from mongo. This is a necessary step unless
+	// walks are not needed, i.e. when -nowalk is specified.
+
+	// Reset nodes and mark ACE nodes in mongo /////////////////////////////////
+
+	if !nowalk {
+		log.Println("Reseting nodes and marking ACE nodes..")
 		start = time.Now()
-		netlist.MarkAceNodes(acestructs)
-		log.Println("ACE nodes marked. Elapsed", time.Since(start))
-	}
-
-	// Stop here if nowalk is specified ////////////////////////////////////////
-
-	if nowalk {
-		return
+		r, m := netlist.MarkAceNodes(acestructs)
+		log.Printf("%d nodes reset and %d ACE nodes marked. Elapsed: %v", r, m,
+			time.Since(start))
 	}
 
 	// Load netlist from mongo /////////////////////////////////////////////////
@@ -126,22 +128,24 @@ func main() {
 
 	// Start walks /////////////////////////////////////////////////////////////
 
-	log.Println("Starting walks..")
-	start = time.Now()
-	changed := n.Walk()
+	if !nowalk {
+		log.Println("Starting walks..")
+		start = time.Now()
+		changed := n.Walk()
 
-	for changed > 0 {
-		changed = n.Walk()
+		for changed > 0 {
+			changed = n.Walk()
+		}
+		log.Println("Walks complete. Elapsed:", time.Since(start))
+
+		// Update mongo with latest ACE info ///////////////////////////////////
+
+		log.Println("Updating nodes..")
+		start = time.Now()
+		updated := n.Update()
+		netlist.UpdateWait()
+		log.Printf("Nodes updated: %d. Elapsed: %v", updated, time.Since(start))
 	}
-	log.Println("Walks complete. Elapsed:", time.Since(start))
-
-	// Update nodes with latest ACE info ///////////////////////////////////////
-
-	log.Println("Updating nodes..")
-	start = time.Now()
-	n.Update()
-	netlist.UpdateWait()
-	log.Println("Nodes updated. Elapsed:", time.Since(start))
 
 	// Print stats and quit ////////////////////////////////////////////////////
 
