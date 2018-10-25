@@ -21,7 +21,6 @@ type Node struct {
 	IsSeqn bool
 	IsWire bool
 	IsAce  bool
-	Walked bool
 	RpAce  *bitfield.BitField
 	WpAce  *bitfield.BitField
 }
