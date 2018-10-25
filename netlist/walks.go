@@ -18,13 +18,13 @@ func (n *Node) AddWpAce(a *Node) {
 }
 
 func (n *Netlist) Walk() (changed int) {
-	changed += n.WalkDn("")
-	log.Println("Dn walk changed", changed, "nodes")
+	d := n.WalkDn("")
+	log.Println("Dn walk changed", d, "nodes")
 
-	// changed += n.WalkUp("")
-	// log.Println("Up walk changed", changed, "nodes")
+	u := n.WalkUp("")
+	log.Println("Up walk changed", u, "nodes")
 
-	return
+	return d + u
 }
 
 func (n *Netlist) WalkDn(prefix string) (changed int) {
@@ -55,39 +55,24 @@ func (n *Netlist) WalkDn(prefix string) (changed int) {
 }
 
 func (n *Netlist) WalkUp(prefix string) (changed int) {
-	// log.Printf("%sWalking up [NETL:%s] ACE:%v", prefix, n.Name, n.IsAce)
+	// log.Printf("%s Walking up [NETL:%s] ACE:%v", prefix, n.Name, n.IsAce)
 	prefix += "|   "
 
-	// log.Printf("%sPropagating outputs", prefix)
-	for _, output := range n.Outputs {
-		if !output.WpAce.AllUnset() {
-			for _, lnode := range n.Links[output.Fullname()] {
-				changed += n.PropUp(prefix+"|   ", lnode, output)
+	for _, node := range n.Nodes {
+		if node.IsAce {
+			for _, lnode := range n.Rlinks[node.Fullname()] {
+				changed += n.PropUp(prefix+"|   ", lnode, node)
 			}
 		}
 	}
 
 	for _, subnet := range n.Subnets {
-		// log.Printf("%sPropagating subnet %s ACE:%v", prefix, subnet.Name, subnet.IsAce)
-		if subnet.IsAce {
-			for _, ace := range subnet.Inputs {
-				if !ace.IsAce {
-					log.Fatal("error")
-				}
+		changed += subnet.WalkUp(prefix)
 
-				for _, lnode := range n.Links[ace.Fullname()] {
-					log.Println("Got here")
-					changed += n.PropUp(prefix+"|   ", lnode, ace)
-				}
-			}
-		} else {
-			changed += subnet.WalkUp(prefix)
-
-			for _, input := range subnet.Inputs {
-				if !input.WpAce.AllUnset() {
-					for _, lnode := range n.Links[input.Fullname()] {
-						changed += n.PropUp(prefix+"|   ", lnode, input)
-					}
+		for _, input := range subnet.Inputs {
+			if input.IsAce || !input.WpAce.AllUnset() {
+				for _, lnode := range n.Rlinks[input.Fullname()] {
+					changed += n.PropUp(prefix+"|   ", lnode, input)
 				}
 			}
 		}
@@ -117,10 +102,10 @@ func (netlist *Netlist) PropDn(prefix string, node *Node, ace *Node) (changed in
 		n.AddRpAce(ace)
 		next := n.RpAce.String()
 
-        // If the value is unchanged after update it means that this ACE value
-        // was already propagated down through this node. Can terminate
-        // propagation here. This logic should prevent cycles from causing
-        // runaways.
+		// If the value is unchanged after update it means that this ACE value
+		// was already propagated down through this node. Can terminate
+		// propagation here. This logic should prevent cycles from causing
+		// runaways.
 		if prev == next {
 			continue
 		}
@@ -145,27 +130,50 @@ func (netlist *Netlist) PropDn(prefix string, node *Node, ace *Node) (changed in
 	return
 }
 
-func (n *Netlist) PropUp(prefix string, node *Node, ace *Node) (changed int) {
-	// log.Printf("%sPropUp: Marking %s with %s", prefix, node, ace)
-	prev := node.WpAce.String()
-	node.AddWpAce(ace)
-	next := node.WpAce.String()
-
-	if prev != next {
-		changed++
-	}
-
-	if node.IsPort {
-		log.Printf("%sPropUp: Walk reached port %s", prefix, node)
+func (netlist *Netlist) PropUp(prefix string, node *Node, ace *Node) (changed int) {
+	if node.IsAce {
 		return
 	}
 
-	for _, lnode := range n.Links[node.Fullname()] {
-		if lnode.IsAce {
-			log.Println("%sPropUp: Walk reached ace %s", prefix, lnode)
+	q := queue.New()
+	q.Push(node)
+
+	for !q.Empty() {
+
+		n := q.Pop().(*Node)
+
+		// If this node is ACE, propagation stops here.
+		if n.IsAce {
 			continue
 		}
-		changed += n.PropUp(prefix+"|   ", lnode, ace)
+
+		prev := n.RpAce.String()
+		n.AddRpAce(ace)
+		next := n.RpAce.String()
+
+		// If the value is unchanged after update it means that this ACE value
+		// was already propagated up through this node. Can terminate
+		// propagation here. This logic should prevent cycles from causing
+		// runaways.
+		if prev == next {
+			continue
+		}
+
+		changed++
+
+		// If we've reached a port, we can terminate. This is because if we are
+		// within a subnet, the parent will continue the walk from the subnet
+		// inputs. If this is a parent this would be the end of the walk
+		// anyway.
+		if n.IsPort {
+			continue
+		}
+
+		// Every node that is connected to this node needs to propagate up this
+		// ACE node's values.
+		for _, lnode := range netlist.Rlinks[n.Fullname()] {
+			q.Push(lnode)
+		}
 	}
 
 	return
