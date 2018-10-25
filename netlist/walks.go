@@ -48,18 +48,8 @@ func (n *Netlist) WalkDn(prefix string) (changed int) {
 			for _, rnode := range n.Links[node.Fullname()] {
 				changed += n.PropDn(prefix+"|   ", rnode, node)
 			}
-			// log.Printf("ACE node updated %d nodes %v", changed, node)
 		}
 	}
-
-	//// // log.Printf("%sPropagating inputs", prefix)
-	//// for _, input := range n.Inputs {
-	//// 	if !input.RpAce.AllUnset() && !input.IsAce {
-	//// 		for _, rnode := range n.Links[input.Fullname()] {
-	//// 			changed += n.PropDn(prefix+"|   ", rnode, input)
-	//// 		}
-	//// 	}
-	//// }
 
 	for _, subnet := range n.Subnets {
 		changed += subnet.WalkDn(prefix)
@@ -71,29 +61,6 @@ func (n *Netlist) WalkDn(prefix string) (changed int) {
 				}
 			}
 		}
-
-		//// // log.Printf("%sPropagating subnet %s", prefix, subnet.Name)
-		//// if subnet.IsAce {
-		//// 	for _, ace := range subnet.Outputs {
-		//// 		if !ace.IsAce {
-		//// 			log.Fatal("error")
-		//// 		}
-
-		//// 		for _, rnode := range n.Links[ace.Fullname()] {
-		//// 			changed += n.PropDn(prefix+"|   ", rnode, ace)
-		//// 		}
-		//// 	}
-		//// } else {
-		//// 	changed += subnet.WalkDn(prefix)
-
-		//// 	for _, output := range subnet.Outputs {
-		//// 		if !output.RpAce.AllUnset() {
-		//// 			for _, rnode := range n.Links[output.Fullname()] {
-		//// 				changed += n.PropDn(prefix+"|   ", rnode, output)
-		//// 			}
-		//// 		}
-		//// 	}
-		//// }
 	}
 
 	return
