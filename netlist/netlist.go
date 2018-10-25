@@ -87,6 +87,7 @@ type Netlist struct {
 	Inouts  map[string]*Node   // Holds all nodes corresponding to inout ports
 	Outputs map[string]*Node   // Holds all nodes corresponding to output ports
 	Links   map[string][]*Node // Map from left-node's fullname to right-nodes
+	Rlinks  map[string][]*Node // Map from right-node's fullname to left-nodes
 	Subnets map[string]*Netlist
 }
 
@@ -99,6 +100,7 @@ func NewNetlist(name string) *Netlist {
 		Outputs: make(map[string]*Node),
 		Subnets: make(map[string]*Netlist),
 		Links:   make(map[string][]*Node),
+		Rlinks:  make(map[string][]*Node),
 	}
 	return n
 }
@@ -219,6 +221,7 @@ func New(prefix, mname, iname string, bfsize, level int) *Netlist {
 // needed.
 func (n *Netlist) Connect(l *Node, r *Node) {
 	n.Links[l.Fullname()] = append(n.Links[l.Fullname()], r)
+	n.Rlinks[r.Fullname()] = append(n.Rlinks[l.Fullname()], l)
 }
 
 func (n *Netlist) AddNode(node *Node) {
