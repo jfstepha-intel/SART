@@ -149,5 +149,5 @@ func main() {
 
 	// Print stats and quit ////////////////////////////////////////////////////
 
-	log.Println(n.Stats(acestructs))
+	n.Stats(acestructs, 0)
 }

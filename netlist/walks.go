@@ -180,32 +180,32 @@ func (netlist *Netlist) PropUp(prefix string, node *Node, ace *Node) (changed in
 }
 
 type NetStats struct {
-	Nodes int
-	Ace   int
-	Seqn  int
-	Hist  histogram.Histogram
+	Nodes   int
+	Ace     int
+	Seqn    int
+	EqnHist histogram.Histogram
 }
 
 func NewNetStats() NetStats {
 	s := NetStats{
-		Hist: histogram.New(),
+		EqnHist: histogram.New(),
 	}
 	return s
 }
 
 func (s NetStats) String() (str string) {
 	return fmt.Sprintf("[Nodes:%d] [ACE:%d] [Seqn:%d]\n%v", s.Nodes,
-		s.Ace, s.Seqn, s.Hist)
+		s.Ace, s.Seqn, s.EqnHist)
 }
 
 func (s *NetStats) Plus(addend NetStats) {
 	s.Nodes += addend.Nodes
 	s.Ace += addend.Ace
 	s.Seqn += addend.Seqn
-	s.Hist.Merge(addend.Hist)
+	s.EqnHist.Merge(addend.EqnHist)
 }
 
-func (n Netlist) Stats(acestructs []ace.AceStruct) (stats NetStats) {
+func (n Netlist) Stats(acestructs []ace.AceStruct, level int) (stats NetStats) {
 	stats = NewNetStats()
 
 	stats.Nodes = len(n.Nodes)
@@ -228,12 +228,17 @@ func (n Netlist) Stats(acestructs []ace.AceStruct) (stats NetStats) {
 				eqn = "1.0000"
 			}
 
-			stats.Hist.Add(eqn)
+			stats.EqnHist.Add(eqn)
 		}
 	}
 
 	for _, subnet := range n.Subnets {
-		stats.Plus(subnet.Stats(acestructs))
+		stats.Plus(subnet.Stats(acestructs, level+1))
+	}
+
+	if level < 2 {
+		log.Println(n)
+		log.Println(stats)
 	}
 
 	return
