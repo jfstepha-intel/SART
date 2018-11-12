@@ -3,23 +3,31 @@ package rtl
 import (
     "fmt"
     "log"
+    "sort"
+    "strings"
 )
 
-// Module Wire /////////////////////////////////////////////////////////////////
+// Module Port /////////////////////////////////////////////////////////////////
 
-type Wire struct {
+type Port struct {
     Parent string       `bson:"module"`
     Name   string       `bson:"name"`
     Type   string       `bson:"type"`
+    Pos    int          `bson:"pos"`
 }
 
-func NewWire(parent, name, typ string) *Wire {
-    p := &Wire {
+func NewPort(parent, name string, pos int) *Port {
+    p := &Port {
         Parent: parent,
         Name  : name,
-        Type  : typ,
+        Type  : "",
+        Pos   : pos,
     }
     return p
+}
+
+func (p *Port) SetType(typ string) {
+    p.Type = typ
 }
 
 // Instance ////////////////////////////////////////////////////////////////////
@@ -30,6 +38,7 @@ type Inst struct {
     Type   string       `bson:"type"`
     IsPrim bool         `bson:"isprim"`
     IsSeq  bool         `bson:"isseq"`
+    IsPrimParent bool   `bson:"isprimparent"`
 }
 
 func NewInst(parent, iname, itype string) *Inst {
@@ -45,58 +54,90 @@ func NewInst(parent, iname, itype string) *Inst {
 // Instance connections ////////////////////////////////////////////////////////
 
 type Conn struct {
-    Parent   string     `bson:"module"`
-    Iname    string     `bson:"iname"`
-    Itype    string     `bson:"itype"`
-    Formal   string     `bson:"formal"`
-    Actual []string     `bson:"actual"`
-    IsOut    bool       `bson:"isout"`
-    IsPrim   bool       `bson:"isprim"`
+    Parent string     `bson:"module"`
+    Iname  string     `bson:"iname"`
+    Itype  string     `bson:"itype"`
+    Actual string     `bson:"actual"`
+    Pos    int        `bson:"pos"`
+    Type   string     `bson:"type"`
+    IsPrim bool       `bson:"isprim"`
 }
 
-func NewConn(parent, iname, itype, formal string, actual []string) *Conn {
+func NewConn(parent, iname, itype, actual string, pos int) *Conn {
     i := &Conn{
         Parent: parent,
         Iname : iname,
         Itype : itype,
-        Formal: formal,
         Actual: actual,
+        Pos   : pos,
+        Type  : "INPUT",   // Allocate the largest string
     }
     return i
+}
+
+func (c Conn) String() (str string) {
+    return fmt.Sprintf("[%s > %s > %s]", c.Parent, c.Iname, c.Actual)
+}
+
+// Instance properties /////////////////////////////////////////////////////////
+
+type Prop struct {
+    Parent string     `bson:"module"`
+    Iname  string     `bson:"iname"`
+    Itype  string     `bson:"itype"`
+    Key    string     `bson:"key"`
+    Val    string     `bson:"val"`
+}
+
+func NewProp(parent, iname, itype, prop string) *Prop {
+    parts := strings.Split(prop, "=")
+    if len(parts) != 2 {
+        log.Fatalln("Unable to interpret property:", prop)
+    }
+    p := &Prop {
+        Parent: parent,
+        Iname : iname,
+        Itype : itype,
+        Key   : parts[0],
+        Val   : parts[1],
+    }
+    return p
 }
 
 // Module //////////////////////////////////////////////////////////////////////
 
 type Module struct {
     Name    string
-    Wires   map[string]*Wire
+    Ports   map[string]*Port
     Insts   map[string]*Inst
     Conns   map[string][]*Conn
+    Props   map[string][]*Prop
 }
 
 func NewModule(name string) *Module {
     m := &Module{
         Name : name,
-        Wires: make(map[string]*Wire),
+        Ports: make(map[string]*Port),
         Insts: make(map[string]*Inst),
         Conns: make(map[string][]*Conn),
+        Props: make(map[string][]*Prop),
     }
     return m
 }
 
-func (m *Module) AddNewWire(name, typ string, hi, lo int64) {
-    // If hi and lo are both zero there was no range specified. So assume
-    // unindexed single bit.
-    if hi == 0 && lo == 0 {
-        wire := NewWire(m.Name, name, typ)
-        m.AddWire(wire)
-    } else { // Otherwise emit one per index.
-        for i := hi; i >= lo; i-- {
-            newname := fmt.Sprintf("%s[%d]", name, i)
-            wire := NewWire(m.Name, newname, typ)
-            m.AddWire(wire)
-        }
+// When a new port is discovered and added, the port type is not known yet. Use
+// the SetPortType method to set it when it becomes available.
+func (m *Module) AddNewPort(name string, pos int) {
+    port := NewPort(m.Name, name, pos)
+    m.AddPort(port)
+}
+
+func (m Module) SetPortType(name, typ string) {
+    if _, ok := m.Ports[name]; !ok {
+        log.Printf("Unknown port: %s (%s)", name, typ)
+        return
     }
+    m.Ports[name].SetType(typ)
 }
 
 func (m *Module) AddNewInst(iname, itype string) {
@@ -104,28 +145,18 @@ func (m *Module) AddNewInst(iname, itype string) {
     m.AddInst(inst)
 }
 
-func (m *Module) AddNewConn(iname, itype, formal string, actual []Signal) {
-    var actuals []string
-
-    // For each actual signal, if the hi or lo are non-zero, then emit names
-    // with index suffixes.
-    for _, a := range actual {
-        if a.Hi == 0 && a.Lo == 0 {
-            actuals = append(actuals, a.Name)
-        } else {
-            for i := a.Hi; i >= a.Lo; i -- {
-                newname := fmt.Sprintf("%s[%d]", a.Name, i)
-                actuals = append(actuals, newname)
-            }
-        }
-    }
-
-    conn := NewConn(m.Name, iname, itype, formal, actuals)
+func (m *Module) AddNewConn(iname, itype, actual string, pos int) {
+    conn := NewConn(m.Name, iname, itype, actual, pos)
     m.AddConn(conn)
 }
 
-func (m *Module) AddWire(wire *Wire) {
-    m.Wires[wire.Name] = wire
+func (m *Module) AddNewProp(iname, itype, property string) {
+    prop := NewProp(m.Name, iname, itype, property)
+    m.AddProp(prop)
+}
+
+func (m *Module) AddPort(port *Port) {
+    m.Ports[port.Name] = port
 }
 
 func (m *Module) AddInst(inst *Inst) {
@@ -136,6 +167,10 @@ func (m *Module) AddConn(conn *Conn) {
     m.Conns[conn.Iname] = append(m.Conns[conn.Iname], conn)
 }
 
+func (m *Module) AddProp(prop *Prop) {
+    m.Props[prop.Iname] = append(m.Props[prop.Iname], prop)
+}
+
 func (m Module) IsSeq(iname string) bool {
     if inst, ok := m.Insts[iname]; ok {
         return inst.IsSeq
@@ -144,8 +179,16 @@ func (m Module) IsSeq(iname string) bool {
     return false
 }
 
-func (m Module) NumWires() (count int) {
-    for range m.Wires {
+func (m Module) OrderedPorts() (ports PortList) {
+    for _, p := range m.Ports {
+        ports = append(ports, p)
+    }
+    sort.Sort(ports)
+    return
+}
+
+func (m Module) NumPorts() (count int) {
+    for range m.Ports {
         count++
     }
     return
@@ -165,9 +208,33 @@ func (m Module) NumConns() (count int) {
     return
 }
 
+func (m Module) String() (str string) {
+    str += fmt.Sprintf("%s Ports:%d Insts:%d Conns:%d", m.Name, m.NumPorts(),
+                       m.NumInsts(), m.NumConns())
+    return
+}
+
 // Signal //////////////////////////////////////////////////////////////////////
 
 type Signal struct {
     Name string
     Hi, Lo int64
+}
+
+// PortList ////////////////////////////////////////////////////////////////////
+
+type PortList []*Port
+
+// Implements sort.Interface
+
+func (p PortList) Len() int {
+    return len(p)
+}
+
+func (p PortList) Less(i, j int) bool {
+    return p[i].Pos < p[j].Pos
+}
+
+func (p PortList) Swap(i, j int) {
+    p[i], p[j] = p[j], p[i]
 }
