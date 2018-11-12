@@ -45,15 +45,15 @@ func (i InstanceTokens) Resolve() (iname, itype string, actuals, props []string)
 	}
 
 	last := i.PopLast()
-	if last.typ != Id {
-		log.Fatalln("Expecting Id for itype. Got:", last)
+	if last.typ != Id && last.typ != Number {
+		log.Fatalln("Expecting Id/Number for itype. Got:", last)
 	}
 	itype = last.val
 
 	// Everything else should be actual signals
 	for _, token := range i {
-		if token.typ != Id {
-			log.Fatalln("Expecting Id for actual signal. Got:", token)
+		if token.typ != Id && token.typ != Number {
+			log.Fatalln("Expecting Id/Number for actual signal. Got:", token)
 		}
 		actuals = append(actuals, token.val)
 	}
@@ -68,6 +68,8 @@ func saveiname(p *parser, inst *InstanceTokens) istatefn {
 	p.expect(Id)
 	inst.Add(iname)
 	switch {
+	case p.tokenis(Number):
+		return add2list
 	case p.tokenis(Id):
 		return add2list
 	case p.accept(Newline):
@@ -81,10 +83,10 @@ func saveiname(p *parser, inst *InstanceTokens) istatefn {
 func add2list(p *parser, inst *InstanceTokens) istatefn {
 	// log.Println("add2list", p.token)
 	actual := p.token
-	p.expect(Id)
+	p.expect(Id, Number)
 	inst.Add(actual)
 	switch {
-	case p.tokenis(Id):
+	case p.tokenis(Id, Number):
 		return add2list
 	case p.tokenis(Property):
 		return properties
