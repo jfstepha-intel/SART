@@ -184,18 +184,20 @@ type NetStats struct {
 	Ace     int
 	Seqn    int
 	EqnHist histogram.Histogram
+	ValHist histogram.Histogram
 }
 
 func NewNetStats() NetStats {
 	s := NetStats{
 		EqnHist: histogram.New(),
+		ValHist: histogram.New(),
 	}
 	return s
 }
 
 func (s NetStats) String() (str string) {
-	return fmt.Sprintf("[Nodes:%d] [ACE:%d] [Seqn:%d]\n%v", s.Nodes,
-		s.Ace, s.Seqn, s.EqnHist)
+	return fmt.Sprintf("[Nodes:%d] [ACE:%d] [Seqn:%d]\n%v\n%v", s.Nodes,
+		s.Ace, s.Seqn, s.EqnHist, s.ValHist)
 }
 
 func (s *NetStats) Plus(addend NetStats) {
@@ -203,6 +205,7 @@ func (s *NetStats) Plus(addend NetStats) {
 	s.Ace += addend.Ace
 	s.Seqn += addend.Seqn
 	s.EqnHist.Merge(addend.EqnHist)
+	s.ValHist.Merge(addend.ValHist)
 }
 
 func (n Netlist) Stats(acestructs []ace.AceStruct, level int) (stats NetStats) {
@@ -218,17 +221,21 @@ func (n Netlist) Stats(acestructs []ace.AceStruct, level int) (stats NetStats) {
 		if node.IsSeqn {
 			stats.Seqn++
 			eqn := ""
+			val := 0.0
 			for _, pos := range node.RpAce.Test() {
 				eqn += fmt.Sprintf("%0.4f+", acestructs[pos].Rpavf)
+				val += acestructs[pos].Rpavf
 			}
 			eqn = strings.TrimSuffix(eqn, "+")
 
 			// If no terms reached this node, it is a 1.0 sequential
 			if eqn == "" {
 				eqn = "1.0000"
+				val = 1.0
 			}
 
 			stats.EqnHist.Add(eqn)
+			stats.ValHist.Add(val)
 		}
 	}
 
