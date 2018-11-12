@@ -12,8 +12,27 @@ const (
     Error ItemType = iota
     EOF
     Slash        // /
+    LParen       // (
+    RParen       // )
+    LBrack       // [
+    RBrack       // ]
+    LBrace       // {
+    RBrace       // }
+    Comma        // ,
+    Semicolon    // ;
+    Colon        // :
+    Dot          // .
+    Equals       // =
     kModule      // module
     EndModule    // endmodule
+    Input        // input
+    Inout        // inout
+    Output       // output
+    Wire         // wire
+    Supply0      // supply0
+    Assign       // assign
+    Number       // 1234
+    ConstBits    // 1'b1
     Id           // Identifier
 )
 
@@ -37,6 +56,7 @@ func (i Item) String() string {
 type statefn func(*lexer) statefn
 
 type lexer struct {
+    name  string
     input string
     start int
     pos   int
@@ -46,8 +66,9 @@ type lexer struct {
     items chan Item
 }
 
-func NewLexer(input string) (*lexer, chan Item) {
+func NewLexer(name, input string) (*lexer, chan Item) {
     l := &lexer {
+        name : name,
         input: input,
         line : 1,
         items: make(chan Item),
@@ -119,8 +140,11 @@ func (l *lexer) errorf(format string, args ...interface{}) statefn {
 func lexLineComment(l *lexer) statefn {
     l.accept("/")
     l.accept("/")
-    for r := l.next(); r != '\n'; r = l.next() {}
+    for r := l.next(); r != '\n'; r = l.next() {
+        l.ignore()
+    }
     l.line++
+    l.ignore()
     return lexText
 }
 
@@ -142,9 +166,32 @@ func lexSlash(l *lexer) statefn {
 
 const alpha = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
 const alnum = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
+const digit = "0123456789"
+const bit   = "01"
+const hex   = "abcdefABCDEF"
+
+func isDigit(r rune) bool {
+    return strings.IndexRune(digit, r) >= 0
+}
 
 func isAlpha(r rune) bool {
     return strings.IndexRune(alpha, r) >= 0
+}
+
+func lexEscId(l *lexer) statefn {
+    if l.next() == '\\' {
+        l.ignore()
+    }
+    for r := l.next(); r != ' '; r = l.next() {
+        if r == '\n' {
+            l.line++
+            l.lpos = 1
+        }
+    }
+    // put the ' ' back, it is not part of the identifier
+    l.backup()
+    l.emit(Id)
+    return lexText
 }
 
 func lexId(l *lexer) statefn {
@@ -153,8 +200,36 @@ func lexId(l *lexer) statefn {
     switch str {
     case "module"      : l.emit(kModule)
     case "endmodule"   : l.emit(EndModule)
+    case "input"       : l.emit(Input)
+    case "inout"       : l.emit(Inout)
+    case "output"      : l.emit(Output)
+    case "wire"        : l.emit(Wire)
+    case "supply0"     : l.emit(Supply0)
+    case "assign"      : l.emit(Assign)
     default            : l.emit(Id)
     }
+    return lexText
+}
+
+func lexNumber(l *lexer) statefn {
+    l.acceptRun(digit)
+
+    if l.accept("'") {
+        // prefixes for binary, decimal, hex no idea what 's' is for
+        // l.accept("bdhsH")
+        // l.acceptRun(digit + hex + "_x?")
+        l.accept("b")
+        l.acceptRun(digit)
+
+        // // a word 'b00001111' maybe split like 'b0000 1111'
+        // for l.accept(" ") {
+        //     l.acceptRun(digit)
+        // }
+        l.emit(ConstBits)
+    } else {
+     l.emit(Number)
+    }
+
     return lexText
 }
 
@@ -167,6 +242,9 @@ func lexText(l *lexer) statefn {
             l.backup()
             return lexSlash
 
+        case r == ' ': l.ignore()
+        case r == '\t': l.ignore()
+
         case r == '\n':
             l.line++
             l.lpos = 1
@@ -176,6 +254,26 @@ func lexText(l *lexer) statefn {
             l.line++
             l.lpos = 1
             l.ignore()
+
+        case r == '(': l.emit(LParen)
+        case r == ')': l.emit(RParen)
+        case r == '[': l.emit(LBrack)
+        case r == ']': l.emit(RBrack)
+        case r == '{': l.emit(LBrace)
+        case r == '}': l.emit(RBrace)
+        case r == ',': l.emit(Comma)
+        case r == ';': l.emit(Semicolon)
+        case r == ':': l.emit(Colon)
+        case r == '.': l.emit(Dot)
+        case r == '=': l.emit(Equals)
+
+        case r == '\\':
+            l.backup()
+            return lexEscId
+
+        case isDigit(r):
+            l.backup()
+            return lexNumber
 
         case isAlpha(r):
             l.backup()
