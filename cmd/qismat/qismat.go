@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"io"
 	"log"
 	"os"
 	"sart/typespecs"
@@ -46,34 +48,34 @@ func (i *Instance) AddChild(c *Instance) {
 	i.Children = append(i.Children, c)
 }
 
-func (i Instance) PrintSeq() {
+func (i Instance) PrintSeq(file io.Writer) {
 	for seq, count := range i.SeqCount {
-		log.Printf("%s,%s,%d", i.Path, seq, count)
+		fmt.Fprintf(file, "%s,%s,%d\n", i.Path, seq, count)
 	}
 
 	for _, child := range i.Children {
-		child.PrintSeq()
+		child.PrintSeq(file)
 	}
 }
 
-func (i Instance) PrintCma() {
+func (i Instance) PrintCma(file io.Writer) {
 	for cma, count := range i.CmaCount {
-		log.Printf("%s,%s,%d", i.Path, cma, count)
+		fmt.Fprintf(file, "%s,%s,%d\n", i.Path, cma, count)
 	}
 
 	for _, child := range i.Children {
-		child.PrintCma()
+		child.PrintCma(file)
 	}
 
 }
 
-func (i Instance) PrintCom() {
+func (i Instance) PrintCom(file io.Writer) {
 	for com, count := range i.ComCount {
-		log.Printf("%s,%s,%d", i.Path, com, count)
+		fmt.Fprintf(file, "%s,%s,%d\n", i.Path, com, count)
 	}
 
 	for _, child := range i.Children {
-		child.PrintCom()
+		child.PrintCom(file)
 	}
 
 }
@@ -121,12 +123,12 @@ func Load(prefix, name string) *Instance {
 		switch ts.Match(itype) {
 		case "Flop":
 			if !i["isseq"].(bool) {
-				log.Fatalf("Classified as flop: %s", itype)
+				log.Printf("Classified as flop: %s", itype)
 			}
 			inst.AddSeq(itype)
 		case "Latch":
 			if !i["isseq"].(bool) {
-				log.Fatalf("Classified as latch: %s", itype)
+				log.Printf("Classified as latch: %s", itype)
 			}
 			inst.AddSeq(itype)
 		case "Comb":
@@ -217,9 +219,18 @@ func main() {
 	inst := Load("", top)
 	if inst != nil {
 		log.SetFlags(0)
-		inst.PrintSeq()
-		inst.PrintCma()
-		inst.PrintCom()
+
+		file, err := os.Create(top + ".csv")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer file.Close()
+
+		inst.PrintSeq(file)
+		fmt.Fprintln(file)
+		inst.PrintCma(file)
+		fmt.Fprintln(file)
+		inst.PrintCom(file)
 	} else {
 		log.Println("Not found")
 	}
