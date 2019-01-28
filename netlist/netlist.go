@@ -189,6 +189,10 @@ func New(prefix, mname, iname string, bfsize, level int) *Netlist {
 				// Locate formal node. This should be a port in the subnet at
 				// the exact position as this connection's position. If node
 				// cannot be located, abort rightaway -- something went wrong.
+				if c.Pos >= len(subnet.Ports) {
+					log.Fatalf("Seeking port position %d in subnet %v of netlist %v. Number of available ports: %d",
+					c.Pos, subnet, n, len(subnet.Ports))
+				}
 				fname := fullname + "/" + subnet.Ports[c.Pos].Name
 				if fnode, ok := subnet.Nodes[fname]; !ok {
 					log.Fatal("Could not locate formal node", fname)
