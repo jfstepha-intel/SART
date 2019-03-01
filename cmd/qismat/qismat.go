@@ -16,8 +16,17 @@ type Instance struct {
 	Path     string
 	SeqCount map[string]int // Sequentials
 	CmaCount map[string]int // RF arrays created as CMAs
+	RegCount map[string]int // RF bits
 	ComCount map[string]int // Combinationa logic gates
 	Children []*Instance
+}
+
+func (i *Instance) AddReg(name string) {
+	if _, ok := i.RegCount[name]; ok {
+		i.RegCount[name]++
+		return
+	}
+	i.RegCount[name] = 1
 }
 
 func (i *Instance) AddSeq(name string) {
@@ -46,6 +55,16 @@ func (i *Instance) AddCom(name string) {
 
 func (i *Instance) AddChild(c *Instance) {
 	i.Children = append(i.Children, c)
+}
+
+func (i Instance) PrintReg(file io.Writer) {
+	for reg, count := range i.RegCount {
+		fmt.Fprintf(file, "%s,%s,%d\n", i.Path, reg, count)
+	}
+
+	for _, child := range i.Children {
+		child.PrintReg(file)
+	}
 }
 
 func (i Instance) PrintSeq(file io.Writer) {
@@ -81,6 +100,11 @@ func (i Instance) PrintCom(file io.Writer) {
 }
 
 func (i Instance) IsEmpty() bool {
+	numregs := 0
+	for range i.RegCount {
+		numregs++
+	}
+
 	numseqs := 0
 	for range i.SeqCount {
 		numseqs++
@@ -96,7 +120,7 @@ func (i Instance) IsEmpty() bool {
 		numcoms++
 	}
 
-	if len(i.Children) == 0 && numseqs == 0 && numcmas == 0 && numcoms == 0 {
+	if len(i.Children) == 0 && numregs == 0 && numseqs == 0 && numcmas == 0 && numcoms == 0 {
 		return true
 	}
 	return false
@@ -110,6 +134,7 @@ func Load(prefix, name string) *Instance {
 		Path:     prefix,
 		SeqCount: make(map[string]int),
 		CmaCount: make(map[string]int),
+		RegCount: make(map[string]int),
 		ComCount: make(map[string]int),
 		Children: []*Instance{},
 	}
@@ -121,6 +146,8 @@ func Load(prefix, name string) *Instance {
 	for iter.Next(&i) {
 		itype := i["type"].(string)
 		switch ts.Match(itype) {
+		case "Reg":
+			inst.AddReg(itype)
 		case "Flop":
 			if !i["isseq"].(bool) {
 				log.Printf("Classified as flop: %s", itype)
@@ -226,6 +253,8 @@ func main() {
 		}
 		defer file.Close()
 
+		inst.PrintReg(file)
+		fmt.Fprintln(file)
 		inst.PrintSeq(file)
 		fmt.Fprintln(file)
 		inst.PrintCma(file)
