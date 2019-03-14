@@ -149,5 +149,5 @@ func main() {
 
 	// Print stats and quit ////////////////////////////////////////////////////
 
-	n.Stats(acestructs, 0)
+	n.Stats(acestructs, 0, 0)
 }
