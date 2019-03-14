@@ -39,6 +39,14 @@ func (n *Netlist) WalkDn(prefix string) (changed int) {
 		}
 	}
 
+	for _, input := range n.Inputs {
+		if input.IsAce || !input.RpAce.AllUnset() {
+			for _, rnode := range n.Links[input.Fullname()] {
+				changed += n.PropDn(prefix+"|   ", rnode, input)
+			}
+		}
+	}
+
 	for _, subnet := range n.Subnets {
 		changed += subnet.WalkDn(prefix)
 
@@ -62,6 +70,14 @@ func (n *Netlist) WalkUp(prefix string) (changed int) {
 		if node.IsAce {
 			for _, lnode := range n.Rlinks[node.Fullname()] {
 				changed += n.PropUp(prefix+"|   ", lnode, node)
+			}
+		}
+	}
+
+	for _, output := range n.Outputs {
+		if output.IsAce || !output.WpAce.AllUnset() {
+			for _, lnode := range n.Rlinks[output.Fullname()] {
+				changed += n.PropUp(prefix+"|   ", lnode, output)
 			}
 		}
 	}
@@ -98,6 +114,7 @@ func (netlist *Netlist) PropDn(prefix string, node *Node, ace *Node) (changed in
 			continue
 		}
 
+		// Propagate read-port AVFs when walking down
 		prev := n.RpAce.String()
 		n.AddRpAce(ace)
 		next := n.RpAce.String()
@@ -147,9 +164,10 @@ func (netlist *Netlist) PropUp(prefix string, node *Node, ace *Node) (changed in
 			continue
 		}
 
-		prev := n.RpAce.String()
-		n.AddRpAce(ace)
-		next := n.RpAce.String()
+		// Propagate write-port AVFs when walking up
+		prev := n.WpAce.String()
+		n.AddWpAce(ace)
+		next := n.WpAce.String()
 
 		// If the value is unchanged after update it means that this ACE value
 		// was already propagated up through this node. Can terminate
@@ -208,7 +226,7 @@ func (s *NetStats) Plus(addend NetStats) {
 	s.ValHist.Merge(addend.ValHist)
 }
 
-func (n Netlist) Stats(acestructs []ace.AceStruct, level int) (stats NetStats) {
+func (n Netlist) Stats(acestructs []ace.AceStruct, level, uptolevel int) (stats NetStats) {
 	stats = NewNetStats()
 
 	stats.Nodes = len(n.Nodes)
@@ -240,10 +258,10 @@ func (n Netlist) Stats(acestructs []ace.AceStruct, level int) (stats NetStats) {
 	}
 
 	for _, subnet := range n.Subnets {
-		stats.Plus(subnet.Stats(acestructs, level+1))
+		stats.Plus(subnet.Stats(acestructs, level+1, uptolevel))
 	}
 
-	if level < 2 {
+	if level <= uptolevel {
 		log.Println(n)
 		log.Println(stats)
 	}
