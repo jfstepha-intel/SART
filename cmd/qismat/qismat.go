@@ -253,12 +253,13 @@ func main() {
 		}
 		defer file.Close()
 
+		fmt.Fprintln(file, "RegisterFiles")
 		inst.PrintReg(file)
-		fmt.Fprintln(file)
+		fmt.Fprintln(file, "Sequentials")
 		inst.PrintSeq(file)
-		fmt.Fprintln(file)
+		fmt.Fprintln(file, "CMAs")
 		inst.PrintCma(file)
-		fmt.Fprintln(file)
+		fmt.Fprintln(file, "Combinational Logic")
 		inst.PrintCom(file)
 	} else {
 		log.Println("Not found")
