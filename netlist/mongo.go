@@ -178,10 +178,15 @@ func MarkAceNodes(acestructs []ace.AceStruct) (reset, marked int) {
 		rpbf.Set(i)
 		wpbf.Set(i)
 
-		sel := bson.M{
-			// The regular expression is applied to the specified field
-			s.Field: bson.RegEx{s.Regex, ""},
+		sel := bson.M{}
+
+		if s.Selector.Module != "" {
+			sel["module"] = bson.RegEx{s.Selector.Module, ""}
 		}
+		if s.Selector.Name != "" {
+			sel["name"] = bson.RegEx{s.Selector.Name, ""}
+		}
+
 		upd := bson.M{
 			"$set": bson.M{
 				"isace": true,
@@ -194,8 +199,8 @@ func MarkAceNodes(acestructs []ace.AceStruct) (reset, marked int) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Printf("(%d/%d) Marked %d nodes ACE with regex %q", i+1, maxace,
-			ci.Updated, s.Regex)
+		log.Printf("(%d/%d) Marked %d nodes ACE with %v", i+1, maxace,
+			ci.Updated, s)
 		marked += ci.Updated
 	}
 
