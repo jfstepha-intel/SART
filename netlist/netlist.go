@@ -225,7 +225,7 @@ func New(prefix, mname, iname string, bfsize, level int) *Netlist {
 // needed.
 func (n *Netlist) Connect(l *Node, r *Node) {
 	n.Links[l.Fullname()] = append(n.Links[l.Fullname()], r)
-	n.Rlinks[r.Fullname()] = append(n.Rlinks[l.Fullname()], l)
+	n.Rlinks[r.Fullname()] = append(n.Rlinks[r.Fullname()], l)
 }
 
 func (n *Netlist) AddNode(node *Node) {
