@@ -2,7 +2,6 @@ package histogram
 
 import (
 	"fmt"
-	"strings"
 )
 
 type Histogram map[interface{}]int
@@ -23,8 +22,8 @@ func (h Histogram) Merge(w Histogram) {
 
 func (h Histogram) String() (str string) {
 	for bin, count := range h {
-		str += fmt.Sprintf("%v: %d\n", bin, count)
+		str += fmt.Sprintf("%v: %d ", bin, count)
 	}
-	str = strings.TrimSuffix(str, "\n")
+	str = strings.TrimSuffix(str, " ")
 	return
 }
