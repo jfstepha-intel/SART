@@ -191,7 +191,7 @@ func New(prefix, mname, iname string, bfsize, level int) *Netlist {
 				// cannot be located, abort rightaway -- something went wrong.
 				if c.Pos >= len(subnet.Ports) {
 					log.Fatalf("Seeking port position %d in subnet %v of netlist %v. Number of available ports: %d",
-					c.Pos, subnet, n, len(subnet.Ports))
+						c.Pos, subnet, n, len(subnet.Ports))
 				}
 				fname := fullname + "/" + subnet.Ports[c.Pos].Name
 				if fnode, ok := subnet.Nodes[fname]; !ok {
@@ -360,4 +360,9 @@ func (n Netlist) NumLinks() (count int) {
 		count++
 	}
 	return
+}
+
+func (n Netlist) Shortname() string {
+	parts := strings.Split(n.Name, "/")
+	return parts[len(parts)-1]
 }
