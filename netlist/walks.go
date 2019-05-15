@@ -3,6 +3,7 @@ package netlist
 import (
 	"fmt"
 	"log"
+	"math"
 	"sart/ace"
 	"sart/histogram"
 	"sart/queue"
@@ -214,8 +215,10 @@ func NewNetStats() NetStats {
 }
 
 func (s NetStats) String() (str string) {
-	return fmt.Sprintf("[Nodes:%d] [ACE:%d] [Seqn:%d]\n%v\n%v", s.Nodes,
-		s.Ace, s.Seqn, s.EqnHist, s.ValHist)
+	if s.Seqn == 0 {
+		return ""
+	}
+	return fmt.Sprintf("[Seqn:%d] [%v] [%v]", s.Seqn, s.EqnHist, s.ValHist)
 }
 
 func (s *NetStats) Plus(addend NetStats) {
@@ -238,19 +241,36 @@ func (n Netlist) Stats(acestructs []ace.AceStruct, level, uptolevel int) (stats 
 
 		if node.IsSeqn {
 			stats.Seqn++
-			eqn := ""
-			val := 0.0
+			reqn := ""
+			weqn := ""
+			rval := 0.0
+			wval := 0.0
+
 			for _, pos := range node.RpAce.Test() {
-				eqn += fmt.Sprintf("%0.4f+", acestructs[pos].Rpavf)
-				val += acestructs[pos].Rpavf
+				reqn += fmt.Sprintf("%0.4f+", acestructs[pos].Rpavf)
+				rval += acestructs[pos].Rpavf
 			}
-			eqn = strings.TrimSuffix(eqn, "+")
+			reqn = strings.TrimSuffix(reqn, "+")
+
+			for _, pos := range node.WpAce.Test() {
+				weqn += fmt.Sprintf("%0.4f+", acestructs[pos].Wpavf)
+				wval += acestructs[pos].Wpavf
+			}
+			weqn = strings.TrimSuffix(weqn, "+")
 
 			// If no terms reached this node, it is a 1.0 sequential
-			if eqn == "" {
-				eqn = "1.0000"
-				val = 1.0
+			if reqn == "" {
+				reqn = "1.0000"
+				rval = 1.0
 			}
+			if weqn == "" {
+				weqn = "1.0000"
+				wval = 1.0
+			}
+
+			// For this node, the seq. AVF is the min of reqn and weqn
+			eqn := fmt.Sprintf("min(%s, %s)", reqn, weqn)
+			val := math.Min(rval, wval)
 
 			stats.EqnHist.Add(eqn)
 			stats.ValHist.Add(val)
@@ -259,11 +279,6 @@ func (n Netlist) Stats(acestructs []ace.AceStruct, level, uptolevel int) (stats 
 
 	for _, subnet := range n.Subnets {
 		stats.Plus(subnet.Stats(acestructs, level+1, uptolevel))
-	}
-
-	if level <= uptolevel {
-		log.Println(n)
-		log.Println(stats)
 	}
 
 	return
