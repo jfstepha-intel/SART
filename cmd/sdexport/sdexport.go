@@ -149,7 +149,9 @@ func Count(m *rtl.Module, prefix string) {
 	for _, inst := range m.Insts {
 		// log.Printf("%s%s %s", prefix, inst.Type, inst.Name)
 
-		switch MatchType(inst.Type) {
+		t := MatchType(inst.Type)
+
+		switch t {
 		case "EBB":
 			x.Embbs[inst.Type]++
 
@@ -171,7 +173,7 @@ func Count(m *rtl.Module, prefix string) {
 			Count(i, prefix+"|   ")
 
 		default:
-			log.Fatal("Function MatchType returned unknown type")
+			log.Fatalf("Function MatchType returned unknown type %q", t)
 		}
 	}
 
