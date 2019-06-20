@@ -2,6 +2,7 @@ package histogram
 
 import (
 	"fmt"
+	"strings"
 )
 
 type Histogram map[interface{}]int
