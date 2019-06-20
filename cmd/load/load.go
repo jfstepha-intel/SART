@@ -102,13 +102,14 @@ var session *mgo.Session
 var cache string
 
 func main() {
-	var path, server string
+	var path, server, seqre string
 	var threads int
 	var noparse, qonly bool
 
 	flag.StringVar(&path, "path", "", "path to folder with netlist files")
 	flag.StringVar(&server, "server", "localhost", "name of mongodb server")
 	flag.StringVar(&cache, "cache", "", "name of cache to save module info")
+	flag.StringVar(&seqre, "seqre", "ec0[fl]", "regular expression to mark sequential cells e.g. 'ec0[fl]'")
 	flag.IntVar(&threads, "threads", 2, "number of parallel threads to spawn")
 	flag.BoolVar(&noparse, "noparse", false, "include to skip parse step")
 	flag.BoolVar(&qonly, "qismatonly", false, "include to skip sart steps")
@@ -278,8 +279,8 @@ func main() {
 
 	clog, err := session.DB("sart").C(cache+"_insts").UpdateAll(
 		// everything that starts with ec0f or ec0l
-		bson.M{"type": bson.RegEx{"ec0[fl]", ""}}, // Selector interface
-		bson.M{"$set": bson.M{"isseq": true}},     // Updater  interface
+		bson.M{"type": bson.RegEx{seqre, ""}}, // Selector interface
+		bson.M{"$set": bson.M{"isseq": true}}, // Updater  interface
 	)
 
 	if err != nil {
