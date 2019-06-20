@@ -147,7 +147,9 @@ func Count(m *rtl.Module, prefix string) {
 	x := NewModule(m)
 
 	for _, inst := range m.Insts {
-		// log.Printf("%s%s %s", prefix, inst.Type, inst.Name)
+		if debug {
+			log.Printf("%s%s %s", prefix, inst.Type, inst.Name)
+		}
 
 		t := MatchType(inst.Type)
 
@@ -178,10 +180,14 @@ func Count(m *rtl.Module, prefix string) {
 	}
 
 	LUT[m.Name] = x
-	log.Printf("%s%s", prefix, m.Name)
+	if !debug {
+		log.Printf("%s%s", prefix, m.Name)
+	}
 }
 
 var SEQ, REG, COM io.Writer
+
+var debug bool
 
 func main() {
 	var server, cache, top, bbpath, tspec string
@@ -191,6 +197,8 @@ func main() {
 	flag.StringVar(&server, "server", "localhost", "name of mongo server (optional)")
 	flag.StringVar(&bbpath, "bb", "", "name of file with list of names to blackbox")
 	flag.StringVar(&tspec, "tspec", "", "path to json file with type specifications")
+
+	flag.BoolVar(&debug, "debug", false, "turn on verbose mode for debug")
 
 	flag.Parse()
 
@@ -229,7 +237,10 @@ func main() {
 
 	rtl.InitMgo(session, cache, false)
 
-	log.SetFlags(log.Lshortfile)
+	log.SetFlags(0)
+	if debug {
+		log.SetFlags(log.Lshortfile)
+	}
 	log.SetOutput(os.Stdout)
 
 	LoadWidths(session, cache)
