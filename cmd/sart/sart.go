@@ -54,6 +54,13 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Set the connection timeout to a large number because for really large
+	// netlists the host may run out of memory and might need to swap before
+	// requests can be fulfilled. For these, the default of 1 minute is clearly
+	// insufficient. Ref:
+	// https://stackoverflow.com/questions/24652587/i-o-timeout-with-mgo-and-mongodb
+	session.SetSocketTimeout(3 * time.Hour)
+
 	rtl.InitMgo(session, cache, false)
 
 	// If a log file is specified redirect log messages to it; stdout otherwise
