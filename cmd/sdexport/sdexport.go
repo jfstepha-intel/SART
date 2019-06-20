@@ -9,6 +9,7 @@ import (
 	"os"
 	"regexp"
 	"sart/rtl"
+	"sart/set"
 	"strings"
 	"time"
 
@@ -189,6 +190,8 @@ var SEQ, REG, COM io.Writer
 
 var debug bool
 
+var blackboxes set.Set
+
 func main() {
 	var server, cache, top, bbpath, tspec string
 
@@ -206,6 +209,8 @@ func main() {
 		flag.PrintDefaults()
 		log.Fatal("Insufficient arguments.")
 	}
+
+	blackboxes = set.New()
 
 	if bbpath != "" {
 		file, err := os.Open(bbpath)
