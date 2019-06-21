@@ -4,6 +4,7 @@ import (
 	"log"
 	"sart/ace"
 	"sart/bitfield"
+	"sart/queue"
 	"sync"
 
 	"gopkg.in/mgo.v2"
@@ -254,16 +255,16 @@ func (n *Netlist) Update() (count int) {
 }
 
 func (n *Netlist) Load() {
-	n.LoadNodes(0)
-	n.LoadLinks(0)
+	n.LoadNodes()
+	n.LoadLinks()
 }
 
-func (n *Netlist) LoadNodes(level int) {
-	// log.Printf("Nodes Load (%d) %q", level, n.Name)
+// LoadLevelNodes loads the nodes at the given level alone.
+func (n *Netlist) LoadLevelNodes(s *mgo.Session) {
 	var result bson.M
 
 	// nodes collection, query and iterator
-	nc := mgosession.DB(db).C(nodecoll)
+	nc := s.DB(db).C(nodecoll)
 	nq := nc.Find(bson.M{"module": n.Name})
 	ni := nq.Iter()
 
@@ -283,40 +284,14 @@ func (n *Netlist) LoadNodes(level int) {
 
 		n.AddNode(&node)
 	}
-
-	// Use parallel loader for subnet nodes.
-	loader := NewNodeLoader(level + 1)
-
-	// subnet collection, query and iterator
-	sc := mgosession.DB(db).C(snetcoll)
-	sq := sc.Find(bson.M{"module": n.Name}).Select(bson.M{"_id": 0, "module": 0})
-	si := sq.Iter()
-
-	for si.Next(&result) {
-		fullname := result["name"].(string)
-		subnet := NewNetlist(fullname)
-		n.Subnets[fullname] = subnet
-
-		// This is effectively subnet.LoadNodes() except that this will run in
-		// parallel through a worker pool.
-		loader.Add(subnet)
-	}
-
-	// Indicate that there will be no more load jobs and wait till all subnets
-	// are loaded. If we don't wait the links being loaded next will not have
-	// all the nodes needed to get hooked up.
-	loader.Done()
-	loader.Wait()
-
-	// log.Printf("Nodes Done (%d) %q", level, n.Name)
 }
 
-func (n *Netlist) LoadLinks(level int) {
-	// log.Printf("Links Load (%d) %q", level, n.Name)
+// LoadLevelLinks loads the links at the given level alone.
+func (n *Netlist) LoadLevelLinks(s *mgo.Session) {
 	var result bson.M
 
 	// link collection, query and iterator
-	lc := mgosession.DB(db).C(linkcoll)
+	lc := s.DB(db).C(linkcoll)
 	lq := lc.Find(bson.M{"module": n.Name}).Select(bson.M{"_id": 0})
 	li := lq.Iter()
 
@@ -336,49 +311,108 @@ func (n *Netlist) LoadLinks(level int) {
 
 		n.Connect(lnode, rnode)
 	}
+}
 
-	// Use parallel loader for subnet links.
-	loader := NewLinkLoader(level + 1)
+// LoadNodes loads nodes of a netlist and all nodes below it in the hierarchy.
+// It traverses the entire hierarchy using a standard breadth-first algorithm.
+// This gives better control of the use of system resources -- CPU and memory
+// than a depth-first algorithm.
+func (nl *Netlist) LoadNodes() {
+	log.Println("Loading", nl.Name, "nodes..")
 
-	for _, subnet := range n.Subnets {
-		// This is effectively subnet.LoadLinks() except that this will run in
-		// parallel through a worker pool.
-		loader.Add(subnet)
+	q := queue.New()
+	q.Push(nl)
+
+	var result bson.M
+
+	loader := NewNodeLoader()
+
+	for !q.Empty() {
+		n := q.Pop().(*Netlist)
+		loader.Add(n)
+
+		// log.Printf("(Q:%d) Loading node %s", q.Len(), n.Name)
+
+		// subnet collection, query and iterator
+		sc := mgosession.DB(db).C(snetcoll)
+		sq := sc.Find(bson.M{"module": n.Name}).Select(bson.M{"_id": 0, "module": 0}).Sort("name")
+		si := sq.Iter()
+
+		// Add all the subnets at this level into the queue to traverse and
+		// fetch nodes.
+		for si.Next(&result) {
+			fullname := result["name"].(string)
+			subnet := NewNetlist(fullname)
+			n.Subnets[fullname] = subnet
+
+			q.Push(subnet)
+		}
 	}
 
 	loader.Done()
 	loader.Wait()
+}
 
-	// log.Printf("Links Done (%d) %q", level, n.Name)
+// LoadLinks loads links of a netlist and all links below it in the hierarchy.
+// It traverses the entire hierarchy using a standard breadth-first algorithm.
+// This gives better control of the use of system resources -- CPU and memory
+// than a depth-first algorithm.
+func (nl *Netlist) LoadLinks() {
+	log.Println("Loading", nl.Name, "links..")
+
+	q := queue.New()
+	q.Push(nl)
+
+	loader := NewLinkLoader()
+
+	for !q.Empty() {
+		n := q.Pop().(*Netlist)
+		loader.Add(n)
+
+		// log.Printf("(Q:%d) Loading link %s", q.Len(), n.Name)
+
+		// Add all the subnets at this level into the queue to traverse and
+		// fetch links
+		for _, subnet := range n.Subnets {
+			q.Push(subnet)
+		}
+	}
+
+	loader.Done()
+	loader.Wait()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type Loader interface {
-	LoadNodes(int)
-	LoadLinks(int)
+type LevelLoader interface {
+	LoadLevelNodes(*mgo.Session)
+	LoadLevelLinks(*mgo.Session)
 }
 
 type NetlistLoader struct {
-	loadjobs chan Loader
+	loadjobs chan LevelLoader
 	wg       sync.WaitGroup
 }
 
-func NewNetlistLoader() *NetlistLoader {
+func NewLevelLoader() *NetlistLoader {
 	l := &NetlistLoader{
-		loadjobs: make(chan Loader, 1000),
+		loadjobs: make(chan LevelLoader, 1000),
 	}
 	return l
 }
 
-func NewNodeLoader(level int) *NetlistLoader {
-	l := NewNetlistLoader()
+func NewNodeLoader() *NetlistLoader {
+	l := NewLevelLoader()
 
 	for i := 0; i < MaxMgoThreads; i++ {
 		l.wg.Add(1)
+
+		// Make a copy of the session for each thread. This should work a
+		// faster than every thread sharing the same session.
+		s := mgosession.Copy()
 		go func() {
 			for job := range l.loadjobs {
-				job.LoadNodes(level)
+				job.LoadLevelNodes(s)
 			}
 			l.wg.Done()
 		}()
@@ -387,14 +421,18 @@ func NewNodeLoader(level int) *NetlistLoader {
 	return l
 }
 
-func NewLinkLoader(level int) *NetlistLoader {
-	l := NewNetlistLoader()
+func NewLinkLoader() *NetlistLoader {
+	l := NewLevelLoader()
 
 	for i := 0; i < MaxMgoThreads; i++ {
 		l.wg.Add(1)
+
+		// Make a copy of the session for each thread. This should work a
+		// faster than every thread sharing the same session.
+		s := mgosession.Copy()
 		go func() {
 			for job := range l.loadjobs {
-				job.LoadLinks(level)
+				job.LoadLevelLinks(s)
 			}
 			l.wg.Done()
 		}()
@@ -404,7 +442,7 @@ func NewLinkLoader(level int) *NetlistLoader {
 }
 
 // Add a job to the loader
-func (l *NetlistLoader) Add(job Loader) {
+func (l *NetlistLoader) Add(job LevelLoader) {
 	l.loadjobs <- job
 }
 
