@@ -101,6 +101,16 @@ func InitMgo(s *mgo.Session, cname string, drop bool) {
 		log.Fatal(err)
 	}
 
+	err = n.EnsureIndex(mgo.Index{Key: []string{"rpace"}})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = n.EnsureIndex(mgo.Index{Key: []string{"wpace"}})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	l := mgosession.DB(db).C(linkcoll)
 	err = l.EnsureIndex(mgo.Index{Key: []string{"module"}})
 	if err != nil {
