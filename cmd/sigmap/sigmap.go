@@ -7,6 +7,7 @@ import (
 	"os"
 	"sart/netlist"
 	"sart/rtl"
+	"sort"
 
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -41,7 +42,7 @@ func bson2node(val bson.M) (node Node) {
 	return
 }
 
-func findOneModule(module string) {
+func findOneMatchModule(module string) {
 	q := nodesCollection.Find(bson.M{"module": bson.RegEx{module, ""}})
 
 	var result bson.M
@@ -51,8 +52,66 @@ func findOneModule(module string) {
 		log.Fatal(err)
 	}
 
-	log.Printf("Found at least one node that matched module regex %q", module)
+	log.Printf("Found at least one node that matched -module regex %q", module)
 	log.Println(bson2node(result))
+}
+
+func findOneMatchName(name string) {
+	q := nodesCollection.Find(bson.M{"name": bson.RegEx{name, ""}})
+
+	var result bson.M
+
+	err := q.One(&result)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("Found at least one node that matched -name regex %q", name)
+	log.Println(bson2node(result))
+}
+
+func findDistinctMatches(module, name string) {
+	q := nodesCollection.Find(bson.M{"name": bson.RegEx{name, ""}})
+
+	var result []string
+
+	err := q.Distinct("name", &result)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sort.Strings(result)
+
+	log.Printf("Unique node names that match -name regex %q", name)
+	for i, n := range result {
+		log.Printf("%4d %q", i+1, n)
+	}
+
+	// Find distinct modules that contain nodes that match the -name regex
+	err = q.Distinct("module", &result)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sort.Strings(result)
+
+	log.Printf("Unique module names that match -name regex %q", name)
+	for i, n := range result {
+		log.Printf("%4d %q", i+1, n)
+	}
+
+	// Find distinct types of nodes that match the -name regex
+	err = q.Distinct("type", &result)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sort.Strings(result)
+
+	log.Printf("Unique types that match -name regex %q", name)
+	for i, n := range result {
+		log.Printf("%4d %q", i+1, n)
+	}
 }
 
 var server, cache string
@@ -95,7 +154,12 @@ func main() {
 	log.SetOutput(os.Stdout)
 
 	if module != "" {
-		findOneModule(module)
+		// findOneMatchModule(module)
+	}
+
+	if name != "" {
+		// findOneMatchName(name)
+		findDistinctMatches(module, name)
 	}
 
 }
