@@ -1,7 +1,6 @@
 package parsesp
 
 import (
-	"io/ioutil"
 	"log"
 	"os"
 	"sart/rtl"
@@ -14,7 +13,7 @@ import (
 func init() {
 	log.SetFlags(log.Lshortfile)
 	log.SetOutput(os.Stdout)
-	log.SetOutput(ioutil.Discard)
+	// log.SetOutput(ioutil.Discard)
 
 	session, err := mgo.Dial("localhost")
 	if err != nil {
@@ -91,7 +90,7 @@ Minst1 a b c
 Minst2 a b c d
 .ENDS
 
-.SUBCKT test4 port1 port2
+.SUBCKT test4a port1 port2
 Minst1 a b c
 Minst2 a b c d
 .ENDS
@@ -169,12 +168,27 @@ func Test7b(t *testing.T) {
 	New("test", strings.NewReader(
 		// subckt with properties in instantiations and line breaks and between ids
 		`
-.SUBCKT test7a port1 port2
+.SUBCKT test7b port1 port2
 *************
 Minst1 a b c prop1=0 prop2="string"
 Minst2 a b prop=33 c d prop3=42
 + prop4=""
 .ENDS`))
+}
+
+func Test7c(t *testing.T) {
+	New("test", strings.NewReader(
+		// subckt with properties in instantiations and line breaks and between ids
+		`
+.SUBCKT e8xlres0a0e1basxn2hnx n11 n22 
+* INPUT: 
+* OUTPUT: 
+* INOUT: n11 n22 
+
+
+************************
+R+i_resa n11 n22 N=2 e8xrm0m1a_prim LEVEL=2 
+.ENDS  e8xlres0a0e1basxn2hnx`))
 }
 
 func Test8(t *testing.T) {
