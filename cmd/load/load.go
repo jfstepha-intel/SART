@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -106,22 +107,22 @@ func main() {
 	var threads int
 	var noparse, qonly bool
 
-	flag.StringVar(&path, "path", "", "path to folder with netlist files")
+	flag.StringVar(&path, "path", "", "path to folder with netlist files (req.)")
 	flag.StringVar(&server, "server", "localhost", "name of mongodb server")
-	flag.StringVar(&cache, "cache", "", "name of cache to save module info")
+	flag.StringVar(&cache, "cache", "", "name of cache to save module info (req.)")
 	flag.StringVar(&seqre, "seqre", "ec0[fl]", "regular expression to mark sequential cells e.g. 'ec0[fl]'")
-	flag.IntVar(&threads, "threads", 2, "number of parallel threads to spawn")
+	flag.IntVar(&threads, "threads", 4, "number of parallel threads to spawn")
 	flag.BoolVar(&noparse, "noparse", false, "include to skip parse step")
 	flag.BoolVar(&qonly, "qismatonly", false, "include to skip sart steps")
 
 	flag.Parse()
 
+	log.SetFlags(log.Lshortfile)
+
 	if path == "" || cache == "" {
 		flag.PrintDefaults()
 		log.Fatal("Insufficient arguments")
 	}
-
-	log.SetFlags(log.Lshortfile)
 
 	// Connect to MongoDB //////////////////////////////////////////////////////
 
@@ -131,6 +132,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// Set the connection timeout to a large number because for really large
+	// netlists the host may run out of memory and might need to swap before
+	// requests can be fulfilled. For these, the default of 1 minute is clearly
+	// insufficient. Ref:
+	// https://stackoverflow.com/questions/24652587/i-o-timeout-with-mgo-and-mongodb
+	session.SetSocketTimeout(3 * time.Hour)
+
 	rtl.InitMgo(session, cache, !noparse)
 
 	log.SetOutput(os.Stdout)
