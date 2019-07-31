@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	log.SetFlags(0)
+	log.SetFlags(log.Lshortfile)
 	log.SetOutput(os.Stdout)
 	log.SetOutput(ioutil.Discard)
 
@@ -161,6 +161,18 @@ func Test7a(t *testing.T) {
 *************
 Minst1 a b c prop1=0 prop2="string"
 Minst2 a b c d prop3=42
++ prop4=""
+.ENDS`))
+}
+
+func Test7b(t *testing.T) {
+	New("test", strings.NewReader(
+		// subckt with properties in instantiations and line breaks and between ids
+		`
+.SUBCKT test7a port1 port2
+*************
+Minst1 a b c prop1=0 prop2="string"
+Minst2 a b prop=33 c d prop3=42
 + prop4=""
 .ENDS`))
 }

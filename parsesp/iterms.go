@@ -39,23 +39,17 @@ func (i InstanceTokens) Resolve() (iname, itype string, actuals, props []string)
 	}
 	iname = first.val
 
-	for i.Last().typ == Property {
-		last := i.PopLast()
-		props = append(props, last.val)
-	}
-
-	last := i.PopLast()
-	if last.typ != Id && last.typ != Number {
-		log.Fatalln("Expecting Id/Number for itype. Got:", last)
-	}
-	itype = last.val
-
-	// Everything else should be actual signals
 	for _, token := range i {
-		if token.typ != Id && token.typ != Number {
+		switch token.typ {
+		case Property:
+			props = append(props, token.val)
+		case Id:
+			fallthrough
+		case Number:
+			actuals = append(actuals, token.val)
+		default:
 			log.Fatalln("Expecting Id/Number for actual signal. Got:", token)
 		}
-		actuals = append(actuals, token.val)
 	}
 	return
 }
@@ -83,13 +77,11 @@ func saveiname(p *parser, inst *InstanceTokens) istatefn {
 func add2list(p *parser, inst *InstanceTokens) istatefn {
 	// log.Println("add2list", p.token)
 	actual := p.token
-	p.expect(Id, Number)
+	p.expect(Id, Number, Property)
 	inst.Add(actual)
 	switch {
-	case p.tokenis(Id, Number):
+	case p.tokenis(Id, Number, Property):
 		return add2list
-	case p.tokenis(Property):
-		return properties
 	case p.accept(Newline):
 		return newline1
 	default:
@@ -113,7 +105,7 @@ func idorprop(p *parser, inst *InstanceTokens) istatefn {
 	case p.tokenis(Id):
 		return add2list
 	case p.tokenis(Property):
-		return properties
+		return add2list
 	default:
 		return p.errorf("idorprop: %v", p.token)
 	}
@@ -124,8 +116,6 @@ func poplist(p *parser, inst *InstanceTokens) istatefn {
 	switch {
 	case p.tokenis(Id, Ends):
 		return success
-	case p.tokenis(Property):
-		return properties
 	default:
 		return p.errorf("poplist: %v", p.token)
 	}
