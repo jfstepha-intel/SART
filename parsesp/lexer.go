@@ -144,7 +144,7 @@ func (l *lexer) errorf(format string, args ...interface{}) statefn {
 }
 
 const alpha = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_."
-const alnum = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.[]#=\"-+'\\"
+const alnum = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.[]#=\"-+'\\!<>/$"
 const digit = "0123456789"
 const bit = "01"
 const hex = "abcdefABCDEF"
