@@ -44,13 +44,16 @@ func (i InstanceTokens) Resolve() (iname, itype string, actuals, props []string)
 		case Property:
 			props = append(props, token.val)
 		case Id:
-			fallthrough
+			itype = token.val
+			actuals = append(actuals, token.val)
 		case Number:
 			actuals = append(actuals, token.val)
 		default:
 			log.Fatalln("Expecting Id/Number for actual signal. Got:", token)
 		}
 	}
+	// Pop the last element, because that one will be the instance type
+	actuals = actuals[:len(actuals)-1]
 	return
 }
 
