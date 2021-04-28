@@ -376,11 +376,15 @@ func main() {
 
 	xtors := []string{
 		"n",
-		"p",
 		"nsvt",
+		"nx",
+		"nxhvt",
+		"nxsvt",
+		"p",
 		"psvt",
-		"nhvt",
-		"phvt",
+		"px",
+		"pxhvt",
+		"pxsvt",
 	}
 
 	for _, xtor := range xtors {
