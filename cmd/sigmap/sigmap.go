@@ -114,6 +114,28 @@ func findDistinctMatches(module, name string) {
 	}
 }
 
+func testQuery(module, name string) {
+	sel := bson.M{}
+
+	if module != "" {
+		sel["module"] = bson.RegEx{module, ""}
+	}
+	if name != "" {
+		sel["name"] = bson.RegEx{name, ""}
+	}
+
+	q := nodesCollection.Find(sel).Sort("type", "module", "name")
+	iter := q.Iter()
+
+	var result bson.M
+
+	count := 1
+	for iter.Next(&result) {
+		log.Printf("%4d type:%q module:%q name:%q", count, result["type"], result["module"], result["name"])
+		count++
+	}
+}
+
 var server, cache string
 var session *mgo.Session
 
@@ -121,11 +143,14 @@ var nodesCollection *mgo.Collection
 
 func main() {
 	var module, name string
+	var test bool
 
 	flag.StringVar(&server, "server", "localhost", "name of mongodb server")
 	flag.StringVar(&cache, "cache", "", "name of cache to search in (req.)")
 	flag.StringVar(&module, "module", "", "regex to match module")
 	flag.StringVar(&name, "name", "", "regex to match name")
+
+	flag.BoolVar(&test, "test", false, "test to find nodes that get selected")
 
 	flag.Parse()
 
@@ -155,6 +180,11 @@ func main() {
 
 	if module != "" {
 		// findOneMatchModule(module)
+	}
+
+	if test {
+		testQuery(module, name)
+		return
 	}
 
 	if name != "" {
